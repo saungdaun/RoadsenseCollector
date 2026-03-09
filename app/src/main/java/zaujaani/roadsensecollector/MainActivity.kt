@@ -14,12 +14,11 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Update total photos di home screen
-        val total = CollectorStats.getTotal(this)
-        binding.tvTotalPhotos.text = "Total: $total foto"
-
         binding.btnCamera.setOnClickListener {
             startActivity(Intent(this, CollectorActivity::class.java))
+        }
+        binding.btnGallery.setOnClickListener {
+            startActivity(Intent(this, GalleryBrowserActivity::class.java))
         }
         binding.btnLibrary.setOnClickListener {
             startActivity(Intent(this, LibraryActivity::class.java))
@@ -34,7 +33,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh total setiap kali balik ke home
         val total = CollectorStats.getTotal(this)
         binding.tvTotalPhotos.text = "Total: $total foto"
     }

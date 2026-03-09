@@ -70,6 +70,14 @@
         android:textSize="16sp"
         android:backgroundTint="@color/accent"
         android:layout_marginBottom="32dp" />
+    <Button
+        android:id="@+id/btnGallery"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:text="🖼️ Browse Gallery HP"
+        android:textSize="16sp"
+        android:backgroundTint="#37474F"
+        android:layout_marginBottom="16dp" />
 
     <TextView
         android:id="@+id/tvTotalPhotos"

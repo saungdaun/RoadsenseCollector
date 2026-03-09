@@ -1,0 +1,202 @@
+package zaujaani.roadsensecollector
+
+import android.app.AlertDialog
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
+import com.bumptech.glide.Glide
+import org.json.JSONObject
+import zaujaani.roadsensecollector.databinding.ActivityPhotoViewerBinding
+import java.io.File
+
+class PhotoViewerActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityPhotoViewerBinding
+    private lateinit var photos : MutableList<File>
+    private lateinit var cls    : RoadClasses.RoadClass
+    private var infoVisible     = true
+
+    companion object {
+        const val EXTRA_CLASS_CODE  = "class_code"
+        const val EXTRA_START_INDEX = "start_index"
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityPhotoViewerBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val code = intent.getStringExtra(EXTRA_CLASS_CODE) ?: return finish()
+        cls      = RoadClasses.BY_CODE[code]              ?: return finish()
+        val start = intent.getIntExtra(EXTRA_START_INDEX, 0)
+
+        val folder = CollectorStats.getClassFolder(this, code)
+        photos = folder?.listFiles()
+            ?.filter { it.extension.lowercase() in listOf("jpg", "jpeg", "png") }
+            ?.sortedByDescending { it.lastModified() }
+            ?.toMutableList()
+            ?: mutableListOf()
+
+        if (photos.isEmpty()) { finish(); return }
+
+        binding.tvClassLabel.text = "${cls.code} — ${cls.nameId}"
+        binding.tvClassLabel.setBackgroundColor(cls.colorHex.toColorInt())
+
+        val adapter = PhotoPagerAdapter(photos)
+        binding.viewPager.adapter = adapter
+        binding.viewPager.setCurrentItem(start, false)
+
+        binding.viewPager.registerOnPageChangeCallback(object :
+            ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                updateInfo(position)
+            }
+        })
+
+        updateInfo(start)
+
+        binding.btnBack.setOnClickListener       { finish() }
+        binding.btnDelete.setOnClickListener     { confirmDelete(binding.viewPager.currentItem) }
+        binding.btnMove.setOnClickListener       { showMoveDialog(binding.viewPager.currentItem) }
+        binding.btnToggleInfo.setOnClickListener {
+            infoVisible = !infoVisible
+            binding.tvGpsInfo.visibility =
+                if (infoVisible) View.VISIBLE else View.GONE
+            binding.btnToggleInfo.text =
+                if (infoVisible) "ℹ Info" else "ℹ Info ○"
+        }
+
+        // Tap foto → toggle bar
+        binding.viewPager.setOnClickListener {
+            val vis = binding.topBar.visibility == View.VISIBLE
+            binding.topBar.visibility    = if (vis) View.GONE else View.VISIBLE
+            binding.bottomBar.visibility = if (vis) View.GONE else View.VISIBLE
+        }
+    }
+
+    private fun updateInfo(position: Int) {
+        if (position >= photos.size) return
+        val file = photos[position]
+
+        binding.tvCounter.text = "${position + 1} / ${photos.size}"
+
+        val jsonFile = File(file.parent, file.nameWithoutExtension + ".json")
+        if (jsonFile.exists()) {
+            try {
+                val json      = JSONObject(jsonFile.readText())
+                val lat       = json.optDouble("latitude",  0.0)
+                val lng       = json.optDouble("longitude", 0.0)
+                val acc       = json.optDouble("accuracy_m", -1.0)
+                val timestamp = json.optString("timestamp", "-")
+                val gpsValid  = json.optBoolean("gps_valid", false)
+
+                binding.tvGpsInfo.text = buildString {
+                    appendLine("📅 $timestamp")
+                    if (gpsValid) {
+                        appendLine("📍 ${"%.6f".format(lat)}, ${"%.6f".format(lng)}")
+                        append("🎯 Akurasi: ±${acc.toInt()}m")
+                    } else {
+                        append("📍 GPS tidak tersedia saat foto")
+                    }
+                }
+            } catch (e: Exception) {
+                binding.tvGpsInfo.text = "📅 ${file.name}"
+            }
+        } else {
+            binding.tvGpsInfo.text = "📅 ${file.name}"
+        }
+    }
+
+    private fun confirmDelete(position: Int) {
+        if (position >= photos.size) return
+        val file = photos[position]
+
+        AlertDialog.Builder(this)
+            .setTitle("Hapus foto?")
+            .setMessage(file.name)
+            .setPositiveButton("Hapus") { _, _ ->
+                val jsonFile = File(file.parent, file.nameWithoutExtension + ".json")
+                file.delete()
+                if (jsonFile.exists()) jsonFile.delete()
+                photos.removeAt(position)
+                CollectorStats.recalculateFromDisk(this)
+
+                if (photos.isEmpty()) {
+                    Toast.makeText(this, "Semua foto dihapus", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    binding.viewPager.adapter?.notifyItemRemoved(position)
+                    binding.viewPager.adapter?.notifyItemRangeChanged(position, photos.size)
+                    updateInfo(binding.viewPager.currentItem)
+                    Toast.makeText(this, "Foto dihapus", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showMoveDialog(position: Int) {
+        if (position >= photos.size) return
+        val file      = photos[position]
+        val classList = RoadClasses.ALL_CLASSES.filter { it.code != cls.code }
+        val names     = classList.map { "${it.code} — ${it.nameId}" }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Pindah ke class:")
+            .setItems(names) { _, which ->
+                val targetCls    = classList[which]
+                val targetFolder = CollectorStats.getClassFolder(this, targetCls.code)
+                targetFolder?.mkdirs()
+                val destPhoto = File(targetFolder, file.name)
+                file.renameTo(destPhoto)
+                val jsonFile = File(file.parent, file.nameWithoutExtension + ".json")
+                if (jsonFile.exists()) jsonFile.renameTo(File(targetFolder, jsonFile.name))
+
+                photos.removeAt(position)
+                CollectorStats.recalculateFromDisk(this)
+
+                if (photos.isEmpty()) {
+                    finish()
+                } else {
+                    binding.viewPager.adapter?.notifyItemRemoved(position)
+                    binding.viewPager.adapter?.notifyItemRangeChanged(position, photos.size)
+                    updateInfo(binding.viewPager.currentItem)
+                }
+                Toast.makeText(this, "✅ Dipindah ke ${targetCls.code}",
+                    Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+}
+
+class PhotoPagerAdapter(
+    private val photos: List<File>
+) : RecyclerView.Adapter<PhotoPagerAdapter.VH>() {
+
+    class VH(view: View) : RecyclerView.ViewHolder(view) {
+        val img: ImageView = view.findViewById(R.id.imgFull)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_photo_viewer, parent, false)
+        return VH(view)
+    }
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        Glide.with(holder.itemView.context)
+            .load(photos[position])
+            .fitCenter()
+            .into(holder.img)
+    }
+
+    override fun getItemCount() = photos.size
+}

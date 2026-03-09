@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 
@@ -16,6 +20,7 @@
         android:label="RoadSense Collector"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:requestLegacyExternalStorage="true"
         android:theme="@style/Theme.RoadSenseCollector">
 
         <activity
@@ -27,11 +32,12 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".CollectorActivity"
-            android:screenOrientation="portrait" />
+        <activity android:name=".CollectorActivity" />
         <activity android:name=".LibraryActivity" />
         <activity android:name=".StatsActivity" />
         <activity android:name=".ExportActivity" />
+        <activity android:name=".PhotoViewerActivity" />
+        <activity android:name=".GalleryBrowserActivity" />
 
     </application>
 

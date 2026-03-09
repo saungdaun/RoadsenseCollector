@@ -3,6 +3,7 @@ package zaujaani.roadsensecollector
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.location.Location
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -25,12 +26,17 @@ class CollectorActivity : AppCompatActivity() {
     private var imageCapture: ImageCapture? = null
     private var lastPhotoUri: Uri? = null
     private var selectedClass: RoadClasses.RoadClass? = null
+    private var lastLocation: Location? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions.all { it.value }) startCamera()
+        val cameraOk   = permissions[Manifest.permission.CAMERA] == true
+        val locationOk = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+                || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (cameraOk) startCamera()
         else Toast.makeText(this, "Izin kamera diperlukan!", Toast.LENGTH_SHORT).show()
+        if (locationOk) fetchLocation()
     }
 
     private val galleryLauncher = registerForActivityResult(
@@ -50,37 +56,55 @@ class CollectorActivity : AppCompatActivity() {
         binding.btnImport.setOnClickListener  { galleryLauncher.launch("image/*") }
         binding.btnBack.setOnClickListener    { finish() }
 
-        // Update total
         binding.tvTotalPhotos.text = "Total: ${CollectorStats.getTotal(this)} foto"
 
         checkPermissions()
     }
 
-    private fun setupClassGrid() {
-        val adapter = ClassGridAdapter(RoadClasses.ALL_CLASSES) { roadClass ->
-            selectedClass = roadClass
-            binding.tvSelectedClass.text = "${roadClass.code} — ${roadClass.nameId}"
-            binding.tvSelectedClass.setBackgroundColor(
-                android.graphics.Color.parseColor(roadClass.colorHex)
-            )
-            // Kalau ada foto pending → langsung simpan
-            lastPhotoUri?.let { uri ->
-                savePhotoToClass(uri, roadClass)
-                lastPhotoUri = null
-            }
-        }
-        binding.rvClasses.layoutManager = GridLayoutManager(this, 2)
-        binding.rvClasses.adapter = adapter
-    }
-
+    // ── Permissions ───────────────────────────────────────────────────
     private fun checkPermissions() {
-        val permissions = arrayOf(Manifest.permission.CAMERA)
-        if (permissions.all {
+        val required = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (required.all {
                 ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-            }) startCamera()
-        else permissionLauncher.launch(permissions)
+            }) {
+            startCamera()
+            fetchLocation()
+        } else {
+            permissionLauncher.launch(required)
+        }
     }
 
+    // ── GPS ───────────────────────────────────────────────────────────
+    private fun fetchLocation() {
+        lastLocation = CollectorStats.getLastLocation(this)
+        updateGpsIndicator()
+
+        // Refresh GPS tiap 10 detik
+        binding.root.postDelayed({
+            lastLocation = CollectorStats.getLastLocation(this)
+            updateGpsIndicator()
+        }, 10_000)
+    }
+
+    private fun updateGpsIndicator() {
+        val loc = lastLocation
+        if (loc != null) {
+            binding.tvSelectedClass.hint?.let {}
+            // Tampilkan status GPS kecil di tvTotalPhotos
+            val total = CollectorStats.getTotal(this)
+            binding.tvTotalPhotos.text =
+                "Total: $total foto  📍 GPS ±${loc.accuracy.toInt()}m"
+        } else {
+            val total = CollectorStats.getTotal(this)
+            binding.tvTotalPhotos.text = "Total: $total foto  📍 GPS mencari..."
+        }
+    }
+
+    // ── Camera ────────────────────────────────────────────────────────
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
@@ -106,10 +130,32 @@ class CollectorActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    // ── Class grid ────────────────────────────────────────────────────
+    private fun setupClassGrid() {
+        val adapter = ClassGridAdapter(RoadClasses.ALL_CLASSES) { roadClass ->
+            selectedClass = roadClass
+            binding.tvSelectedClass.text = "${roadClass.code} — ${roadClass.nameId}"
+            binding.tvSelectedClass.setBackgroundColor(
+                android.graphics.Color.parseColor(roadClass.colorHex)
+            )
+            lastPhotoUri?.let { uri ->
+                savePhotoToClass(uri, roadClass)
+                lastPhotoUri = null
+            }
+        }
+        binding.rvClasses.layoutManager = GridLayoutManager(this, 2)
+        binding.rvClasses.adapter = adapter
+    }
+
+    // ── Take photo ────────────────────────────────────────────────────
     private fun takePhoto() {
         val imgCapture = imageCapture ?: return
-        val timestamp  = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val tempFile   = File(cacheDir, "temp_$timestamp.jpg")
+
+        // Refresh GPS setiap foto
+        lastLocation = CollectorStats.getLastLocation(this)
+
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val tempFile  = File(cacheDir, "temp_$timestamp.jpg")
         val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
 
         imgCapture.takePicture(
@@ -139,11 +185,20 @@ class CollectorActivity : AppCompatActivity() {
         )
     }
 
+    // ── Save photo + GPS JSON ─────────────────────────────────────────
     private fun savePhotoToClass(sourceUri: Uri, roadClass: RoadClasses.RoadClass) {
         try {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS",
                 Locale.getDefault()).format(Date())
             val filename  = "${roadClass.code}_${timestamp}.jpg"
+
+            // Standardize dulu ke temp file → 640×640, koreksi rotasi
+            val tempStd = File(cacheDir, "std_$filename")
+            val success = ImageStandardizer.standardize(this, sourceUri, tempStd)
+            if (!success) {
+                Toast.makeText(this, "Gagal standardize foto", Toast.LENGTH_SHORT).show()
+                return
+            }
 
             val contentValues = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, filename)
@@ -158,11 +213,18 @@ class CollectorActivity : AppCompatActivity() {
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
 
             destUri?.let { dest ->
-                resolver.openInputStream(sourceUri)?.use { input ->
-                    resolver.openOutputStream(dest)?.use { output ->
-                        input.copyTo(output)
-                    }
+                // Copy dari temp standardized file
+                resolver.openOutputStream(dest)?.use { output ->
+                    tempStd.inputStream().use { input -> input.copyTo(output) }
                 }
+                tempStd.delete() // hapus temp
+
+                CollectorStats.saveGpsJson(
+                    context       = this,
+                    classCode     = roadClass.code,
+                    photoFilename = filename,
+                    location      = lastLocation
+                )
                 CollectorStats.increment(this, roadClass.code)
                 showSuccessAnimation(roadClass)
             }
@@ -171,6 +233,7 @@ class CollectorActivity : AppCompatActivity() {
         }
     }
 
+    // ── Import gallery ────────────────────────────────────────────────
     private fun showClassPickerForImport(uris: List<Uri>) {
         val dialog = ClassPickerDialog(this, RoadClasses.ALL_CLASSES) { roadClass ->
             var saved = 0
@@ -185,14 +248,17 @@ class CollectorActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    // ── Success animation ─────────────────────────────────────────────
     private fun showSuccessAnimation(roadClass: RoadClasses.RoadClass) {
-        binding.tvSaveConfirm.text = "✅ Disimpan ke ${roadClass.code} — ${roadClass.nameId}"
+        val gpsInfo = lastLocation?.let { "📍 ${String.format("%.5f", it.latitude)}, ${String.format("%.5f", it.longitude)}" } ?: "📍 No GPS"
+        binding.tvSaveConfirm.text =
+            "✅ ${roadClass.code} — ${roadClass.nameId}\n$gpsInfo"
         binding.tvSaveConfirm.visibility = android.view.View.VISIBLE
         binding.tvSaveConfirm.postDelayed({
             binding.tvSaveConfirm.visibility = android.view.View.GONE
             binding.imgPreview.visibility    = android.view.View.GONE
-        }, 1500)
+        }, 2000)
 
-        binding.tvTotalPhotos.text = "Total: ${CollectorStats.getTotal(this)} foto"
+        updateGpsIndicator()
     }
 }

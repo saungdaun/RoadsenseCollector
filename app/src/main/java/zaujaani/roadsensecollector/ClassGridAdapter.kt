@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
@@ -17,7 +18,7 @@ class ClassGridAdapter(
 
     private var selectedPosition = -1
 
-    inner class VH(view: View) : RecyclerView.ViewHolder(view) {
+    class VH(view: View) : RecyclerView.ViewHolder(view) {
         val tvCode    : TextView = view.findViewById(R.id.tvCode)
         val tvName    : TextView = view.findViewById(R.id.tvName)
         val tvCategory: TextView = view.findViewById(R.id.tvCategory)
@@ -32,7 +33,7 @@ class ClassGridAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val cls        = classes[position]
-        val baseColor  = Color.parseColor(cls.colorHex)
+        val baseColor  = cls.colorHex.toColorInt()
         val isSelected = position == selectedPosition
 
         holder.tvCode.text     = cls.code
@@ -40,18 +41,15 @@ class ClassGridAdapter(
         holder.tvCategory.text = cls.category.label
 
         holder.container.setBackgroundColor(
-            if (isSelected) baseColor else adjustAlpha(baseColor, 0.25f)
+            if (isSelected) baseColor
+            else Color.argb(64, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor))
         )
-        holder.tvCode.setTextColor(
-            if (isSelected) Color.WHITE else baseColor
-        )
-        holder.tvName.setTextColor(
-            if (isSelected) Color.WHITE else Color.LTGRAY
-        )
+        holder.tvCode.setTextColor(if (isSelected) Color.WHITE else baseColor)
+        holder.tvName.setTextColor(if (isSelected) Color.WHITE else Color.LTGRAY)
 
         holder.itemView.setOnClickListener {
             val prev = selectedPosition
-            selectedPosition = holder.adapterPosition
+            selectedPosition = holder.bindingAdapterPosition
             notifyItemChanged(prev)
             notifyItemChanged(selectedPosition)
             onClassSelected(cls)
@@ -59,11 +57,6 @@ class ClassGridAdapter(
     }
 
     override fun getItemCount() = classes.size
-
-    private fun adjustAlpha(color: Int, factor: Float): Int {
-        val alpha = (255 * factor).toInt()
-        return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
-    }
 }
 
 class ClassPickerDialog(

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="120dp"
+    android:layout_margin="2dp">
+
+    <!-- Foto -->
+    <ImageView
+        android:id="@+id/imgGallery"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop" />
+
+    <!-- Overlay gelap saat dipilih -->
+    <View
+        android:id="@+id/overlaySelected"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#88000000"
+        android:visibility="gone" />
+
+    <!-- Centang saat dipilih -->
+    <TextView
+        android:id="@+id/tvCheck"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:text="✓"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:background="@color/primary"
+        android:visibility="gone"
+        android:layout_gravity="top|end"
+        android:layout_margin="4dp" />
+
+    <!-- Tanggal foto -->
+    <TextView
+        android:id="@+id/tvDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/white"
+        android:textSize="9sp"
+        android:padding="2dp"
+        android:background="#88000000"
+        android:layout_gravity="bottom" />
+
+</FrameLayout>
