@@ -78,6 +78,14 @@
         android:textSize="16sp"
         android:backgroundTint="#37474F"
         android:layout_marginBottom="16dp" />
+    <Button
+        android:id="@+id/btnVideoExtractor"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:text="🎬 Extract Frame Video"
+        android:textSize="16sp"
+        android:backgroundTint="#1B5E20"
+        android:layout_marginBottom="16dp" />
 
     <TextView
         android:id="@+id/tvTotalPhotos"

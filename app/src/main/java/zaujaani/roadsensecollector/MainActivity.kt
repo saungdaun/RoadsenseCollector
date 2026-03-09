@@ -20,6 +20,9 @@ class MainActivity : AppCompatActivity() {
         binding.btnGallery.setOnClickListener {
             startActivity(Intent(this, GalleryBrowserActivity::class.java))
         }
+        binding.btnVideoExtractor.setOnClickListener {
+            startActivity(Intent(this, VideoExtractorActivity::class.java))
+        }
         binding.btnLibrary.setOnClickListener {
             startActivity(Intent(this, LibraryActivity::class.java))
         }
