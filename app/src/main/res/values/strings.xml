@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RoadSense Collector</string>
+    <string name="btn_camera">📸 Foto Sekarang</string>
+    <string name="btn_library">🗂️ Library Foto</string>
+    <string name="btn_stats">📊 Statistik</string>
+    <string name="btn_export">📤 Export YOLO</string>
+    <string name="btn_back">← Kembali</string>
+    <string name="btn_import">📁 Import Galeri</string>
+    <string name="btn_capture">📸 Foto</string>
+    <string name="btn_refresh">🔄 Refresh</string>
+    <string name="btn_export_start">📤 Mulai Export</string>
+    <string name="select_class">Pilih class di bawah</string>
+    <string name="total_photos">Total: 0 foto</string>
+</resources>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Primary -->
+    <color name="primary">#1565C0</color>
+    <color name="primary_dark">#0D47A1</color>
+    <color name="primary_light">#42A5F5</color>
+    <color name="accent">#FF6F00</color>
+
+    <!-- Background -->
+    <color name="bg_dark">#121212</color>
+    <color name="bg_card">#1E1E1E</color>
+    <color name="bg_item">#2C2C2C</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B0B0</color>
+    <color name="text_hint">#757575</color>
+
+    <!-- Status -->
+    <color name="status_ready">#4CAF50</color>
+    <color name="status_warning">#FFC107</color>
+    <color name="status_danger">#F44336</color>
+    <color name="status_empty">#9E9E9E</color>
+
+    <!-- Distress -->
+    <color name="distress_red">#F44336</color>
+    <color name="marking_blue">#2196F3</color>
+    <color name="sign_green">#4CAF50</color>
+    <color name="feature_purple">#9C27B0</color>
+    <color name="surface_brown">#795548</color>
+</resources>
