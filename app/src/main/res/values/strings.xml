@@ -12,4 +12,42 @@
     <string name="btn_export_start">📤 Mulai Export</string>
     <string name="select_class">Pilih class di bawah</string>
     <string name="total_photos">Total: 0 foto</string>
+
+    <!-- Video Extractor -->
+    <string name="title_video_extractor">🎬 Extract Frame Video</string>
+    <string name="btn_pick_video">📂 Pilih Video</string>
+    <string name="btn_extract">⚡ Extract</string>
+    <string name="btn_select_all">☑ Semua</string>
+    <string name="btn_clear_selection">✕ Batal</string>
+    <string name="btn_assign_frames">📁 Assign ke Class →</string>
+    <string name="label_interval">Interval extract (detik):</string>
+    <string name="interval_value">Setiap %d detik</string>
+    <string name="video_info_default">Belum ada video dipilih</string>
+    <string name="frame_count_format">%1$d / %2$d dipilih</string>
+    <string name="permission_required">Izin storage diperlukan!</string>
+    <string name="extract_success">✅ %d frame diekstrak — tap untuk preview fullscreen</string>
+    <string name="assign_success">✅ %d frame disimpan ke %s — %s</string>
+    <string name="assign_dialog_title">Assign %d frame ke class:</string>
+    <string name="btn_cancel">Batal</string>
+
+    <!-- Frame Preview Dialog -->
+    <string name="preview_blur_badge">⚠ BLUR</string>
+    <string name="preview_zoom_hint">🔍 Pinch to zoom · Double tap reset</string>
+    <string name="preview_index_format">%1$d / %2$d</string>
+    <string name="btn_prev_frame">◀</string>
+    <string name="btn_next_frame">▶</string>
+    <string name="btn_frame_select">☐ Pilih</string>
+    <string name="btn_frame_selected">✔ Dipilih</string>
+    <string name="btn_assign_direct">📁 Assign</string>
+    <string name="btn_close_preview">✕</string>
+
+    <!-- Frame thumbnail hint -->
+    <string name="frame_tap_hint">🔍</string>
+
+    <!-- Video info bar & progress -->
+    <string name="video_info_format">⏱ %1$s  |  📐 %2$s×%3$s  |  ~%4$d frame @ %5$ds</string>
+    <string name="extract_progress">Mengekstrak frame %1$d... (%2$d%%)</string>
+    <string name="timestamp_format">%1$02d:%2$02d</string>
+    <string name="preview_timestamp_format">⏱ %1$02d:%2$02d</string>
+    <string name="class_name_format">%1$s — %2$s</string>
 </resources>

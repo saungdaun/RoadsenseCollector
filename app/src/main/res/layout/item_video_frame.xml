@@ -59,4 +59,15 @@
         android:layout_margin="4dp"
         android:visibility="gone" />
 
+    <!-- Tap hint -->
+    <TextView
+        android:id="@+id/tvTapHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/frame_tap_hint"
+        android:textSize="14sp"
+        android:padding="3dp"
+        android:background="#66000000"
+        android:layout_gravity="center" />
+
 </FrameLayout>

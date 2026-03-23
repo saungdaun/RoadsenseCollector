@@ -31,4 +31,8 @@
     <color name="sign_green">#4CAF50</color>
     <color name="feature_purple">#9C27B0</color>
     <color name="surface_brown">#795548</color>
+
+    <!-- Frame preview select toggle -->
+    <color name="select_active">#1B5E20</color>
+    <color name="select_inactive">#1565C0</color>
 </resources>
