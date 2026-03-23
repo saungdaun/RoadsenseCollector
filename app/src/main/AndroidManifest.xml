@@ -4,7 +4,8 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+        android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -40,7 +41,9 @@
         <activity android:name=".ExportActivity" />
         <activity android:name=".PhotoViewerActivity" />
         <activity android:name=".GalleryBrowserActivity" />
-        <activity android:name=".VideoExtractorActivity" />
+        <activity
+            android:name=".VideoExtractorActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
 
     </application>
 
