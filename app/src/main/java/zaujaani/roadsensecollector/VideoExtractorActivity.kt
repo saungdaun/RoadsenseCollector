@@ -4,15 +4,18 @@ import android.Manifest
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.ContentValues
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.PowerManager
 import android.provider.MediaStore
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -34,6 +37,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import zaujaani.roadsensecollector.databinding.ActivityVideoExtractorBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -41,20 +46,31 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * VideoFrame menyimpan path ke file temp, bukan bitmap langsung di memory.
+ * Bitmap di-load on-demand saat ditampilkan, lalu di-recycle setelah selesai.
+ * Ini mencegah OOM pada video panjang.
+ */
 data class VideoFrame(
-    val bitmap   : Bitmap,
-    val timeMs   : Long,
-    val isBlurry : Boolean,
-    var selected : Boolean = false
-)
+    val thumbPath : String,   // path file JPEG temp di cacheDir
+    val timeMs    : Long,
+    val isBlurry  : Boolean,
+    var selected  : Boolean = false
+) {
+    fun loadBitmap(): Bitmap? = try {
+        BitmapFactory.decodeFile(thumbPath)
+    } catch (_: Exception) { null }
+}
 
 class VideoExtractorActivity : AppCompatActivity() {
 
-    private lateinit var binding  : ActivityVideoExtractorBinding
-    private val frames            = mutableListOf<VideoFrame>()
-    private lateinit var adapter  : VideoFrameAdapter
-    private var videoUri          : Uri? = null
-    private var intervalSeconds   = 2
+    private lateinit var binding        : ActivityVideoExtractorBinding
+    private val frames                  = mutableListOf<VideoFrame>()
+    private lateinit var adapter        : VideoFrameAdapter
+    private var videoUri                : Uri? = null
+    private var intervalSeconds         = 2
+    private var extractJob              : Job? = null
+    private var wakeLock                : PowerManager.WakeLock? = null
 
     private val videoPickerLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -75,15 +91,46 @@ class VideoExtractorActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.permission_required), Toast.LENGTH_SHORT).show()
     }
 
+    // ── Lifecycle ─────────────────────────────────────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityVideoExtractorBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         setupUI()
         setupAdapter()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        releaseWakeLock()
+        // Hapus semua file temp saat activity destroy
+        clearTempFrames()
+    }
+
+    // ── WakeLock helpers ──────────────────────────────────────────────
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "roadsensecollector:ExtractWakeLock"
+        ).also {
+            it.acquire(30 * 60 * 1000L) // max 30 menit
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) wakeLock?.release()
+        wakeLock = null
+    }
+
+    private fun clearTempFrames() {
+        frames.forEach { frame ->
+            try { File(frame.thumbPath).delete() } catch (_: Exception) {}
+        }
+    }
+
+    // ── UI Setup ──────────────────────────────────────────────────────
     private fun setupUI() {
         binding.btnBack.setOnClickListener           { finish() }
         binding.btnPickVideo.setOnClickListener      { pickVideo() }
@@ -121,23 +168,19 @@ class VideoExtractorActivity : AppCompatActivity() {
         try {
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(this, uri)
-
             val duration = retriever.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
             val width    = retriever.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
             val height   = retriever.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-
             retriever.release()
 
             val durationStr     = String.format(Locale.getDefault(), "%02d:%02d",
                 duration / 60000, (duration % 60000) / 1000)
             val estimatedFrames = (duration / 1000 / intervalSeconds).toInt()
-
             binding.tvVideoInfo.text =
                 getString(R.string.video_info_format, durationStr, width, height, estimatedFrames, intervalSeconds)
-
         } catch (_: Exception) {
             binding.tvVideoInfo.text = getString(R.string.video_info_default)
         }
@@ -145,8 +188,9 @@ class VideoExtractorActivity : AppCompatActivity() {
 
     // ── Extract frames ────────────────────────────────────────────────
     private fun startExtract() {
-        val uri = videoUri ?: return
+        val uri      = videoUri ?: return
         val prevSize = frames.size
+        clearTempFrames()
         frames.clear()
         adapter.notifyItemRangeRemoved(0, prevSize)
 
@@ -155,20 +199,27 @@ class VideoExtractorActivity : AppCompatActivity() {
         binding.btnExtract.isEnabled   = false
         binding.btnPickVideo.isEnabled = false
 
-        lifecycleScope.launch {
+        acquireWakeLock()  // Cegah layar mati matikan proses
+
+        extractJob = lifecycleScope.launch {
             val extracted = withContext(Dispatchers.IO) { extractFrames(uri) }
-            frames.addAll(extracted)
-            adapter.notifyItemRangeInserted(0, extracted.size)
-            updateFrameCount()
 
-            binding.progressBar.visibility = View.GONE
-            binding.tvProgress.visibility  = View.GONE
-            binding.btnExtract.isEnabled   = true
-            binding.btnPickVideo.isEnabled = true
+            // Hanya update UI jika job belum di-cancel
+            if (isActive) {
+                frames.addAll(extracted)
+                adapter.notifyItemRangeInserted(0, extracted.size)
+                updateFrameCount()
 
-            Toast.makeText(this@VideoExtractorActivity,
-                getString(R.string.extract_success, frames.size),
-                Toast.LENGTH_LONG).show()
+                binding.progressBar.visibility = View.GONE
+                binding.tvProgress.visibility  = View.GONE
+                binding.btnExtract.isEnabled   = true
+                binding.btnPickVideo.isEnabled = true
+
+                Toast.makeText(this@VideoExtractorActivity,
+                    getString(R.string.extract_success, frames.size),
+                    Toast.LENGTH_LONG).show()
+            }
+            releaseWakeLock()
         }
     }
 
@@ -178,7 +229,6 @@ class VideoExtractorActivity : AppCompatActivity() {
 
         return try {
             retriever.setDataSource(this, uri)
-
             val durationMs = retriever.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: return result
             val intervalMs = intervalSeconds * 1000L
@@ -186,13 +236,33 @@ class VideoExtractorActivity : AppCompatActivity() {
             var frameIndex = 0
 
             while (currentMs <= durationMs) {
+                // Cek coroutine masih aktif — stop jika di-cancel
+                if (!extractJob!!.isActive) break
+
                 val bitmap = retriever.getFrameAtTime(
                     currentMs * 1000,
                     MediaMetadataRetriever.OPTION_CLOSEST_SYNC
                 )
+
                 if (bitmap != null) {
-                    result.add(VideoFrame(bitmap, currentMs, detectBlur(bitmap)))
+                    // Simpan ke file temp, JANGAN simpan bitmap ke list
+                    val thumbFile = File(cacheDir, "thumb_${frameIndex}_${currentMs}.jpg")
+                    val saved = try {
+                        thumbFile.outputStream().use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                        }
+                        true
+                    } catch (_: Exception) { false }
+
+                    if (saved) {
+                        val isBlurry = detectBlur(bitmap)
+                        result.add(VideoFrame(thumbFile.absolutePath, currentMs, isBlurry))
+                    }
+
+                    // Recycle bitmap segera setelah dipakai
+                    bitmap.recycle()
                     frameIndex++
+
                     withContext(Dispatchers.Main) {
                         val progress = ((currentMs.toFloat() / durationMs) * 100).toInt()
                         binding.progressBar.progress = progress
@@ -210,7 +280,7 @@ class VideoExtractorActivity : AppCompatActivity() {
         }
     }
 
-    // ── Blur detection pakai Laplacian variance ───────────────────────
+    // ── Blur detection ────────────────────────────────────────────────
     private fun detectBlur(bitmap: Bitmap): Boolean {
         return try {
             val width  = bitmap.width
@@ -238,7 +308,6 @@ class VideoExtractorActivity : AppCompatActivity() {
                     }
                 }
             }
-
             if (count == 0) return false
             val mean     = sum / count
             val variance = (sumSq / count) - (mean * mean)
@@ -287,7 +356,20 @@ class VideoExtractorActivity : AppCompatActivity() {
         val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
 
+        // Inflate dulu SEBELUM show() agar window siap
+        val view = LayoutInflater.from(this)
+            .inflate(R.layout.dialog_frame_preview, null)
+        dialog.setContentView(view)
+
         val win = dialog.window
+        win?.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT
+        )
+
+        // show() dulu, BARU akses insetsController (decorView sudah attach)
+        dialog.show()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             win?.insetsController?.hide(android.view.WindowInsets.Type.statusBars())
         } else {
@@ -297,14 +379,6 @@ class VideoExtractorActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.FLAG_FULLSCREEN
             )
         }
-
-        val view = LayoutInflater.from(this)
-            .inflate(R.layout.dialog_frame_preview, win?.decorView as? ViewGroup, false)
-        dialog.setContentView(view)
-        win?.setLayout(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT
-        )
 
         var currentPos = startPosition
 
@@ -323,6 +397,7 @@ class VideoExtractorActivity : AppCompatActivity() {
         var scaleFactor = 1f
         var lastX       = 0f
         var lastY       = 0f
+        var currentBitmap: Bitmap? = null
 
         val scaleDetector = ScaleGestureDetector(this,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -371,15 +446,20 @@ class VideoExtractorActivity : AppCompatActivity() {
         fun renderFrame(pos: Int) {
             val frame = frames[pos]
 
+            // Recycle bitmap lama sebelum load baru
+            currentBitmap?.recycle()
+            currentBitmap = frame.loadBitmap()
+            val bmp = currentBitmap ?: return
+
             scaleFactor = 1f
             matrix.reset()
             imgPreview.imageMatrix = matrix
             imgPreview.scaleType   = ImageView.ScaleType.FIT_CENTER
-            imgPreview.setImageBitmap(frame.bitmap)
+            imgPreview.setImageBitmap(bmp)
             imgPreview.scaleType   = ImageView.ScaleType.MATRIX
             imgPreview.post {
-                val bw = frame.bitmap.width.toFloat()
-                val bh = frame.bitmap.height.toFloat()
+                val bw = bmp.width.toFloat()
+                val bh = bmp.height.toFloat()
                 val vw = imgPreview.width.toFloat()
                 val vh = imgPreview.height.toFloat()
                 if (vw > 0 && vh > 0) {
@@ -402,11 +482,15 @@ class VideoExtractorActivity : AppCompatActivity() {
             )
             (btnToggleSelect as? android.widget.Button)?.backgroundTintList =
                 ColorStateList.valueOf(
-                    ContextCompat.getColor(
-                        this,
-                        if (isSelected) R.color.select_active else R.color.select_inactive
-                    )
+                    ContextCompat.getColor(this,
+                        if (isSelected) R.color.select_active else R.color.select_inactive)
                 )
+        }
+
+        // Recycle bitmap saat dialog ditutup
+        dialog.setOnDismissListener {
+            currentBitmap?.recycle()
+            currentBitmap = null
         }
 
         renderFrame(currentPos)
@@ -434,8 +518,6 @@ class VideoExtractorActivity : AppCompatActivity() {
             showAssignDialog()
         }
         btnClose.setOnClickListener { dialog.dismiss() }
-
-        dialog.show()
     }
 
     // ── Assign ke class ───────────────────────────────────────────────
@@ -456,7 +538,11 @@ class VideoExtractorActivity : AppCompatActivity() {
                     var saved = 0
                     withContext(Dispatchers.IO) {
                         selected.forEach { frame ->
-                            if (saveFrameToClass(frame.bitmap, cls)) saved++
+                            val bmp = frame.loadBitmap()
+                            if (bmp != null) {
+                                if (saveFrameToClass(bmp, cls)) saved++
+                                bmp.recycle()
+                            }
                         }
                     }
                     CollectorStats.recalculateFromDisk(this@VideoExtractorActivity)
@@ -532,6 +618,7 @@ class VideoFrameAdapter(
         val tvTimestamp    : TextView  = view.findViewById(R.id.tvTimestamp)
         val tvBlur         : TextView  = view.findViewById(R.id.tvBlur)
         val tvTapHint      : TextView  = view.findViewById(R.id.tvTapHint)
+        var thumbBitmap    : Bitmap?   = null  // track untuk recycle
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -544,7 +631,10 @@ class VideoFrameAdapter(
         val frame      = frames[position]
         val isSelected = frame.selected
 
-        holder.img.setImageBitmap(frame.bitmap)
+        // Recycle bitmap lama sebelum load baru
+        holder.thumbBitmap?.recycle()
+        holder.thumbBitmap = frame.loadBitmap()
+        holder.img.setImageBitmap(holder.thumbBitmap)
 
         val seconds = frame.timeMs / 1000
         holder.tvTimestamp.text = holder.itemView.context.getString(
@@ -560,6 +650,13 @@ class VideoFrameAdapter(
             onLongPress(holder.bindingAdapterPosition)
             true
         }
+    }
+
+    override fun onViewRecycled(holder: VH) {
+        super.onViewRecycled(holder)
+        holder.thumbBitmap?.recycle()
+        holder.thumbBitmap = null
+        holder.img.setImageDrawable(null)
     }
 
     override fun getItemCount() = frames.size
