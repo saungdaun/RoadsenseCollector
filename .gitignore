@@ -10,3 +10,4 @@
 .cxx
 local.properties
 "@ | Out-File -FilePath .gitignore -Encoding utf8
+*.zip
