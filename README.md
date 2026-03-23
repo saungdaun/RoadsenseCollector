@@ -36,7 +36,7 @@ Output disimpan ke `Pictures/RoadSenseCollector_Export/`.
 
 ## 🏷️ Label / Class
 
-Dataset mencakup **36 class** dalam 5 kategori:
+Dataset mencakup **15 class** dalam 2 kategori, mengacu pada terminologi baku penilaian kondisi jalan (PCI / IRI):
 
 ### 🔴 Kerusakan Jalan (Distress)
 | Code | Label |
@@ -52,46 +52,14 @@ Dataset mencakup **36 class** dalam 5 kategori:
 | D08 | Tambalan |
 | D09 | Bleeding |
 
-### 🔵 Marka Jalan (Marking)
-| Code | Label |
-|------|-------|
-| M00 | Marka Lajur (Baik) |
-| M01 | Marka Lajur (Pudar) |
-| M02 | Zebra Cross (Baik) |
-| M03 | Zebra Cross (Pudar) |
-| M04 | Marka Panah |
-| M05 | Garis Stop |
-
-### 🟢 Rambu (Sign)
-| Code | Label |
-|------|-------|
-| S00 | Rambu Kecepatan |
-| S01 | Rambu Peringatan |
-| S02 | Rambu Larangan |
-| S03 | Rambu Petunjuk |
-| S04 | Rambu Rusak |
-| S05 | Rambu Hilang |
-
-### ⚫ Fitur Jalan (Road Feature)
-| Code | Label |
-|------|-------|
-| R00 | Penutup Manhole |
-| R01 | Speed Bump |
-| R02 | Tutup Selokan |
-| R03 | Kerusakan Trotoar |
-| R04 | Kerusakan Bahu Jalan |
-| R05 | Bekas Galian |
-
 ### 🟤 Jenis Permukaan (Surface)
 | Code | Label |
 |------|-------|
-| P00 | Aspal Baik |
-| P01 | Aspal Rusak |
-| P02 | Beton |
-| P03 | Paving Block |
-| P04 | Kerikil |
-| P05 | Tanah |
-| P06 | Tanah Berlubang |
+| P00 | Aspal |
+| P01 | Beton |
+| P02 | Paving Block |
+| P03 | Kerikil |
+| P04 | Tanah |
 
 ---
 
