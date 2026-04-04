@@ -5,7 +5,7 @@
     <string name="btn_library">🗂️ Library Foto</string>
     <string name="btn_stats">📊 Statistik</string>
     <string name="btn_export">📤 Export YOLO</string>
-    <string name="btn_back">← Kembali</string>
+
     <string name="btn_import">📁 Import Galeri</string>
     <string name="btn_capture">📸 Foto</string>
     <string name="btn_refresh">🔄 Refresh</string>
@@ -15,12 +15,10 @@
 
     <!-- Video Extractor -->
     <string name="title_video_extractor">🎬 Extract Frame Video</string>
-    <string name="btn_pick_video">📂 Pilih Video</string>
-    <string name="btn_extract">⚡ Extract</string>
-    <string name="btn_select_all">☑ Semua</string>
+
     <string name="btn_clear_selection">✕ Batal</string>
     <string name="btn_assign_frames">📁 Assign ke Class →</string>
-    <string name="label_interval">Interval extract (detik):</string>
+
     <string name="interval_value">Setiap %d detik</string>
     <string name="video_info_default">Belum ada video dipilih</string>
     <string name="frame_count_format">%1$d / %2$d dipilih</string>
@@ -28,7 +26,7 @@
     <string name="extract_success">✅ %d frame diekstrak — tap untuk preview fullscreen</string>
     <string name="assign_success">✅ %d frame disimpan ke %s — %s</string>
     <string name="assign_dialog_title">Assign %d frame ke class:</string>
-    <string name="btn_cancel">Batal</string>
+
 
     <!-- Frame Preview Dialog -->
     <string name="preview_blur_badge">⚠ BLUR</string>
@@ -41,8 +39,7 @@
     <string name="btn_assign_direct">📁 Assign</string>
     <string name="btn_close_preview">✕</string>
 
-    <!-- Frame thumbnail hint -->
-    <string name="frame_tap_hint">🔍</string>
+
 
     <!-- Video info bar & progress -->
     <string name="video_info_format">⏱ %1$s  |  📐 %2$s×%3$s  |  ~%4$d frame @ %5$ds</string>
@@ -50,4 +47,91 @@
     <string name="timestamp_format">%1$02d:%2$02d</string>
     <string name="preview_timestamp_format">⏱ %1$02d:%2$02d</string>
     <string name="class_name_format">%1$s — %2$s</string>
+
+    <!-- CropActivity strings -->
+    <string name="crop_hint">Drag sudut/sisi untuk crop • Drag tengah untuk geser</string>
+    <string name="crop_btn_cancel">✕ Batal</string>
+    <string name="crop_btn_reset">↺ Reset</string>
+    <string name="crop_btn_crop">✂ Crop &amp; Simpan</string>
+    <string name="crop_error_open">Gagal membuka gambar</string>
+    <string name="crop_error_invalid">Area crop tidak valid</string>
+    <string name="crop_error_too_small">Area crop terlalu kecil</string>
+    <string name="crop_error_generic">Crop gagal: %s</string>
+    <!-- VideoExtractorActivity strings -->
+    <string name="btn_close_x">✕</string>
+    <string name="btn_go">GO</string>
+    <string name="btn_crop">✂ Crop</string>
+    <string name="btn_cancel">Batal</string>
+    <string name="btn_download_extract">⬇ Download &amp; Extract Video Ini</string>
+
+    <string name="youtube_url_hint">Paste URL video / YouTube…</string>
+    <string name="youtube_info_hint">💡 Cari video kerusakan jalan → salin URL → paste di atas → GO\nUntuk URL MP4 langsung: tap ⬇ Download &amp; Extract</string>
+    <string name="webview_user_agent">Mozilla/5.0 (Linux; Android 11; Mobile) AppleWebKit/537.36 Chrome/100.0 Mobile Safari/537.36</string>
+
+    <string name="download_not_video">Bukan file video: %s</string>
+    <string name="download_no_url">Tidak ada URL video</string>
+    <string name="download_started">⬇ Mendownload %s…</string>
+    <string name="download_title">RoadSense: %s</string>
+    <string name="download_description">Mendownload video untuk dataset…</string>
+    <string name="download_queued">⬇ Download dimulai — notifikasi akan muncul saat selesai</string>
+    <string name="download_failed">❌ Download gagal: %s</string>
+    <string name="download_complete">✅ Download selesai! Tekan Extract untuk mulai.</string>
+    <string name="download_failed_retry">❌ Download gagal. Coba URL lain.</string>
+
+    <string name="stream_ready">✅ Video siap di-extract langsung dari URL!</string>
+
+    <string name="frame_marked_hint">✔ Ditandai — tap 📁 Assign di bawah untuk simpan ke kelas</string>
+    <string name="frame_unmarked">Tanda dibatalkan</string>
+    <string name="frame_tap_hint">👆 zoom\n⋯ tahan=pilih</string>
+    <string name="frame_save_failed">❌ Gagal menyimpan frame</string>
+
+    <string name="assign_frame_title">Simpan frame ini ke kelas:</string>
+    <string name="assign_crop_title">Simpan hasil crop ke kelas:</string>
+    <string name="assign_crop_success">✅ Crop disimpan ke %s — %s</string>
+    <string name="assign_direct_success">✅ Disimpan ke %s — %s</string>
+    <string name="save_failed">❌ Gagal menyimpan</string>
+    <!-- StatsActivity strings -->
+    <string name="stats_total_all">Total semua foto: %d</string>
+    <string name="stats_readiness">Class siap training (≥%1$d foto): %2$d / %3$d</string>
+    <string name="stats_photo_count">%d foto</string>
+
+    <!-- Status labels — stats_status_low pakai %d untuk sisa foto,
+         sisanya tidak pakai argumen tapi format string tetap konsisten -->
+    <string name="stats_status_none">⚪ Belum ada foto</string>
+    <string name="stats_status_low">🔴 Kurang (%d lagi)</string>
+    <string name="stats_status_almost">🟡 Hampir cukup</string>
+    <string name="stats_status_ready">✅ Siap training</string>
+    <!-- PhotoViewerActivity strings -->
+    <string name="class_label_format">%1$s — %2$s</string>
+    <string name="photo_counter">%1$d / %2$d</string>
+
+    <string name="btn_info_visible">ℹ Info</string>
+    <string name="btn_info_hidden">ℹ Info ○</string>
+
+    <string name="gps_timestamp">📅 %s</string>
+    <string name="gps_coords">📍 %1$s, %2$s</string>
+    <string name="gps_accuracy">🎯 Akurasi: ±%dm</string>
+    <string name="gps_unavailable">📍 GPS tidak tersedia saat foto</string>
+
+    <string name="dialog_delete_title">Hapus foto?</string>
+    <string name="dialog_move_title">Pindah ke class:</string>
+    <string name="btn_delete">Hapus</string>
+
+    <string name="toast_all_deleted">Semua foto dihapus</string>
+    <string name="toast_photo_deleted">Foto dihapus</string>
+    <string name="toast_moved">✅ Dipindah ke %s</string>
+    <!-- activity_video_extractor strings -->
+    <string name="btn_back">← Kembali</string>
+    <string name="video_extractor_title">🎬 Extract Frame Video</string>
+    <string name="frame_count_default">0 frame</string>
+    <string name="btn_pick_video">📂 Pilih Video</string>
+    <string name="btn_search_web">🌐 Cari di Web</string>
+    <string name="label_interval">Interval extract (detik):</string>
+    <string name="seekbar_interval_desc">Interval ekstraksi frame dalam detik</string>
+    <string name="interval_default">Setiap 2 detik</string>
+    <string name="btn_extract">⚡ Extract</string>
+    <string name="rv_frames_desc">Daftar frame hasil ekstraksi video</string>
+    <string name="btn_select_all">☑ Semua</string>
+    <string name="btn_assign_class">📁 Assign ke Class →</string>
+
 </resources>

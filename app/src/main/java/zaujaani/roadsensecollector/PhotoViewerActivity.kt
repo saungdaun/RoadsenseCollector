@@ -18,10 +18,10 @@ import java.io.File
 
 class PhotoViewerActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityPhotoViewerBinding
-    private lateinit var photos : MutableList<File>
-    private lateinit var cls    : RoadClasses.RoadClass
-    private var infoVisible     = true
+    private lateinit var binding    : ActivityPhotoViewerBinding
+    private lateinit var photos     : MutableList<File>
+    private lateinit var cls        : RoadClasses.RoadClass
+    private var infoVisible         = true
 
     companion object {
         const val EXTRA_CLASS_CODE  = "class_code"
@@ -33,8 +33,8 @@ class PhotoViewerActivity : AppCompatActivity() {
         binding = ActivityPhotoViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val code = intent.getStringExtra(EXTRA_CLASS_CODE) ?: return finish()
-        cls      = RoadClasses.BY_CODE[code]              ?: return finish()
+        val code  = intent.getStringExtra(EXTRA_CLASS_CODE) ?: return finish()
+        cls       = RoadClasses.BY_CODE[code]               ?: return finish()
         val start = intent.getIntExtra(EXTRA_START_INDEX, 0)
 
         val folder = CollectorStats.getClassFolder(this, code)
@@ -46,7 +46,7 @@ class PhotoViewerActivity : AppCompatActivity() {
 
         if (photos.isEmpty()) { finish(); return }
 
-        binding.tvClassLabel.text = "${cls.code} — ${cls.nameId}"
+        binding.tvClassLabel.text = getString(R.string.class_label_format, cls.code, cls.nameId)
         binding.tvClassLabel.setBackgroundColor(cls.colorHex.toColorInt())
 
         val adapter = PhotoPagerAdapter(photos)
@@ -67,10 +67,10 @@ class PhotoViewerActivity : AppCompatActivity() {
         binding.btnMove.setOnClickListener       { showMoveDialog(binding.viewPager.currentItem) }
         binding.btnToggleInfo.setOnClickListener {
             infoVisible = !infoVisible
-            binding.tvGpsInfo.visibility =
-                if (infoVisible) View.VISIBLE else View.GONE
-            binding.btnToggleInfo.text =
-                if (infoVisible) "ℹ Info" else "ℹ Info ○"
+            binding.tvGpsInfo.visibility = if (infoVisible) View.VISIBLE else View.GONE
+            binding.btnToggleInfo.setText(
+                if (infoVisible) R.string.btn_info_visible else R.string.btn_info_hidden
+            )
         }
 
         // Tap foto → toggle bar
@@ -85,32 +85,33 @@ class PhotoViewerActivity : AppCompatActivity() {
         if (position >= photos.size) return
         val file = photos[position]
 
-        binding.tvCounter.text = "${position + 1} / ${photos.size}"
+        binding.tvCounter.text = getString(R.string.photo_counter, position + 1, photos.size)
 
         val jsonFile = File(file.parent, file.nameWithoutExtension + ".json")
         if (jsonFile.exists()) {
             try {
                 val json      = JSONObject(jsonFile.readText())
-                val lat       = json.optDouble("latitude",  0.0)
-                val lng       = json.optDouble("longitude", 0.0)
+                val lat       = json.optDouble("latitude",   0.0)
+                val lng       = json.optDouble("longitude",  0.0)
                 val acc       = json.optDouble("accuracy_m", -1.0)
-                val timestamp = json.optString("timestamp", "-")
+                val timestamp = json.optString("timestamp",  "-")
                 val gpsValid  = json.optBoolean("gps_valid", false)
 
                 binding.tvGpsInfo.text = buildString {
-                    appendLine("📅 $timestamp")
+                    appendLine(getString(R.string.gps_timestamp, timestamp))
                     if (gpsValid) {
-                        appendLine("📍 ${"%.6f".format(lat)}, ${"%.6f".format(lng)}")
-                        append("🎯 Akurasi: ±${acc.toInt()}m")
+                        appendLine(getString(R.string.gps_coords,
+                            "%.6f".format(lat), "%.6f".format(lng)))
+                        append(getString(R.string.gps_accuracy, acc.toInt()))
                     } else {
-                        append("📍 GPS tidak tersedia saat foto")
+                        append(getString(R.string.gps_unavailable))
                     }
                 }
-            } catch (e: Exception) {
-                binding.tvGpsInfo.text = "📅 ${file.name}"
+            } catch (_: Exception) {
+                binding.tvGpsInfo.text = file.name
             }
         } else {
-            binding.tvGpsInfo.text = "📅 ${file.name}"
+            binding.tvGpsInfo.text = file.name
         }
     }
 
@@ -119,9 +120,9 @@ class PhotoViewerActivity : AppCompatActivity() {
         val file = photos[position]
 
         AlertDialog.Builder(this)
-            .setTitle("Hapus foto?")
+            .setTitle(R.string.dialog_delete_title)
             .setMessage(file.name)
-            .setPositiveButton("Hapus") { _, _ ->
+            .setPositiveButton(R.string.btn_delete) { _, _ ->
                 val jsonFile = File(file.parent, file.nameWithoutExtension + ".json")
                 file.delete()
                 if (jsonFile.exists()) jsonFile.delete()
@@ -129,16 +130,18 @@ class PhotoViewerActivity : AppCompatActivity() {
                 CollectorStats.recalculateFromDisk(this)
 
                 if (photos.isEmpty()) {
-                    Toast.makeText(this, "Semua foto dihapus", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this,
+                        getString(R.string.toast_all_deleted), Toast.LENGTH_SHORT).show()
                     finish()
                 } else {
                     binding.viewPager.adapter?.notifyItemRemoved(position)
                     binding.viewPager.adapter?.notifyItemRangeChanged(position, photos.size)
                     updateInfo(binding.viewPager.currentItem)
-                    Toast.makeText(this, "Foto dihapus", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this,
+                        getString(R.string.toast_photo_deleted), Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("Batal", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 
@@ -146,10 +149,12 @@ class PhotoViewerActivity : AppCompatActivity() {
         if (position >= photos.size) return
         val file      = photos[position]
         val classList = RoadClasses.ALL_CLASSES.filter { it.code != cls.code }
-        val names     = classList.map { "${it.code} — ${it.nameId}" }.toTypedArray()
+        val names     = classList.map {
+            getString(R.string.class_label_format, it.code, it.nameId)
+        }.toTypedArray()
 
         AlertDialog.Builder(this)
-            .setTitle("Pindah ke class:")
+            .setTitle(R.string.dialog_move_title)
             .setItems(names) { _, which ->
                 val targetCls    = classList[which]
                 val targetFolder = CollectorStats.getClassFolder(this, targetCls.code)
@@ -169,10 +174,10 @@ class PhotoViewerActivity : AppCompatActivity() {
                     binding.viewPager.adapter?.notifyItemRangeChanged(position, photos.size)
                     updateInfo(binding.viewPager.currentItem)
                 }
-                Toast.makeText(this, "✅ Dipindah ke ${targetCls.code}",
-                    Toast.LENGTH_SHORT).show()
+                Toast.makeText(this,
+                    getString(R.string.toast_moved, targetCls.code), Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Batal", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 }

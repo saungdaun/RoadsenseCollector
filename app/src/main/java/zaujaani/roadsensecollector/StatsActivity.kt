@@ -1,5 +1,7 @@
 package zaujaani.roadsensecollector
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -32,12 +34,16 @@ class StatsActivity : AppCompatActivity() {
         val total  = stats.values.sum()
         val maxVal = stats.values.maxOrNull() ?: 1
 
-        binding.tvTotalAll.text  = "Total semua foto: $total"
+        binding.tvTotalAll.text  = getString(R.string.stats_total_all, total)
 
         val minRecommended = 50
         val classesReady   = stats.count { it.value >= minRecommended }
-        binding.tvReadiness.text =
-            "Class siap training (≥$minRecommended foto): $classesReady / ${RoadClasses.ALL_CLASSES.size}"
+        binding.tvReadiness.text = getString(
+            R.string.stats_readiness,
+            minRecommended,
+            classesReady,
+            RoadClasses.ALL_CLASSES.size
+        )
 
         val statItems = RoadClasses.ALL_CLASSES.map { cls ->
             StatItem(cls, stats[cls.code] ?: 0, maxVal, minRecommended)
@@ -74,29 +80,30 @@ class StatsAdapter(private val items: List<StatItem>) :
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        val item = items[position]
-        val cls  = item.cls
+        val item      = items[position]
+        val cls       = item.cls
+        val parsedColor = Color.parseColor(cls.colorHex)
 
         holder.tvCode.text  = cls.code
         holder.tvName.text  = cls.nameId
-        holder.tvCount.text = "${item.count} foto"
-        holder.indicator.setBackgroundColor(
-            android.graphics.Color.parseColor(cls.colorHex)
+        holder.tvCount.text = holder.itemView.context
+            .getString(R.string.stats_photo_count, item.count)
+
+        holder.indicator.setBackgroundColor(parsedColor)
+
+        holder.progressBar.max           = item.maxCount
+        holder.progressBar.progress      = item.count
+        holder.progressBar.progressTintList = ColorStateList.valueOf(parsedColor)
+
+        holder.tvStatus.text = holder.itemView.context.getString(
+            when {
+                item.count == 0                      -> R.string.stats_status_none
+                item.count < item.minRecommended / 2 -> R.string.stats_status_low
+                item.count < item.minRecommended     -> R.string.stats_status_almost
+                else                                 -> R.string.stats_status_ready
+            },
+            item.minRecommended - item.count   // hanya dipakai oleh stats_status_low
         )
-
-        holder.progressBar.max      = item.maxCount
-        holder.progressBar.progress = item.count
-        holder.progressBar.progressTintList =
-            android.content.res.ColorStateList.valueOf(
-                android.graphics.Color.parseColor(cls.colorHex)
-            )
-
-        holder.tvStatus.text = when {
-            item.count == 0                          -> "⚪ Belum ada foto"
-            item.count < item.minRecommended / 2     -> "🔴 Kurang (${item.minRecommended - item.count} lagi)"
-            item.count < item.minRecommended         -> "🟡 Hampir cukup"
-            else                                     -> "✅ Siap training"
-        }
     }
 
     override fun getItemCount() = items.size

@@ -3,10 +3,9 @@ package zaujaani.roadsensecollector
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.Matrix
-import android.graphics.Paint
 import android.net.Uri
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.FileOutputStream
@@ -16,7 +15,7 @@ import java.io.InputStream
  * ImageStandardizer — Standarisasi foto sebelum disimpan ke class folder.
  *
  * Proses:
- * 1. Baca foto dari URI / File
+ * 1. Baca foto dari URI / gallery
  * 2. Koreksi rotasi dari EXIF
  * 3. Center crop → square
  * 4. Resize → 640×640
@@ -30,7 +29,7 @@ object ImageStandardizer {
 
     /**
      * Standardize dari URI (kamera / gallery import)
-     * Return: File hasil standardisasi, atau null jika gagal
+     * Return: true jika berhasil, false jika gagal
      */
     fun standardize(context: Context, sourceUri: Uri, destFile: File): Boolean {
         return try {
@@ -38,9 +37,9 @@ object ImageStandardizer {
             val bitmap      = decodeBitmap(inputStream) ?: return false
             val rotated     = correctRotation(context, sourceUri, bitmap)
             val cropped     = centerCropToSquare(rotated)
-            val resized     = Bitmap.createScaledBitmap(cropped, TARGET_SIZE, TARGET_SIZE, true)
+            // Fix: use KTX extension Bitmap.scale instead of Bitmap.createScaledBitmap
+            val resized     = cropped.scale(TARGET_SIZE, TARGET_SIZE)
             saveBitmap(resized, destFile)
-            true
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -55,9 +54,9 @@ object ImageStandardizer {
             val bitmap  = BitmapFactory.decodeFile(sourceFile.absolutePath) ?: return false
             val rotated = correctRotationFromFile(sourceFile, bitmap)
             val cropped = centerCropToSquare(rotated)
-            val resized = Bitmap.createScaledBitmap(cropped, TARGET_SIZE, TARGET_SIZE, true)
+            // Fix: use KTX extension Bitmap.scale instead of Bitmap.createScaledBitmap
+            val resized = cropped.scale(TARGET_SIZE, TARGET_SIZE)
             saveBitmap(resized, destFile)
-            true
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -73,7 +72,7 @@ object ImageStandardizer {
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
 
         // Hitung sample size supaya tidak OOM
-        options.inSampleSize    = calculateInSampleSize(options, TARGET_SIZE * 2, TARGET_SIZE * 2)
+        options.inSampleSize       = calculateInSampleSize(options, TARGET_SIZE * 2, TARGET_SIZE * 2)
         options.inJustDecodeBounds = false
         options.inPreferredConfig  = Bitmap.Config.RGB_565
 
@@ -83,7 +82,8 @@ object ImageStandardizer {
     private fun calculateInSampleSize(
         options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int
     ): Int {
-        val (height, width) = options.outHeight to options.outWidth
+        val height = options.outHeight
+        val width  = options.outWidth
         var inSampleSize = 1
         if (height > reqHeight || width > reqWidth) {
             val halfHeight = height / 2
@@ -102,7 +102,7 @@ object ImageStandardizer {
             val inputStream = context.contentResolver.openInputStream(uri) ?: return bitmap
             val exif        = ExifInterface(inputStream)
             rotateBitmap(bitmap, getRotationDegrees(exif))
-        } catch (e: Exception) { bitmap }
+        } catch (_: Exception) { bitmap }
     }
 
     // ── Koreksi rotasi dari EXIF (File) ───────────────────────────────
@@ -110,7 +110,7 @@ object ImageStandardizer {
         return try {
             val exif = ExifInterface(file.absolutePath)
             rotateBitmap(bitmap, getRotationDegrees(exif))
-        } catch (e: Exception) { bitmap }
+        } catch (_: Exception) { bitmap }
     }
 
     private fun getRotationDegrees(exif: ExifInterface): Float {
@@ -136,17 +136,16 @@ object ImageStandardizer {
         val size = minOf(w, h)
         val x    = (w - size) / 2
         val y    = (h - size) / 2
-
         if (w == h) return bitmap
         return Bitmap.createBitmap(bitmap, x, y, size, size)
     }
 
     // ── Simpan ke JPEG 95 ─────────────────────────────────────────────
+    // Fix: return Boolean langsung dari compress (tidak perlu 'true' redundant)
     private fun saveBitmap(bitmap: Bitmap, destFile: File): Boolean {
         destFile.parentFile?.mkdirs()
         return FileOutputStream(destFile).use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            true
         }
     }
 
@@ -156,6 +155,6 @@ object ImageStandardizer {
             val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(file.absolutePath, opts)
             "${opts.outWidth}×${opts.outHeight}px  ${file.length() / 1024}KB"
-        } catch (e: Exception) { "Unknown" }
+        } catch (_: Exception) { "Unknown" }
     }
 }

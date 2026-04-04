@@ -35,4 +35,6 @@
     <!-- Frame preview select toggle -->
     <color name="select_active">#1B5E20</color>
     <color name="select_inactive">#1565C0</color>
+    <color name="youtube_red">#C62828</color>
+    <color name="extract_green">#1B5E20</color>
 </resources>

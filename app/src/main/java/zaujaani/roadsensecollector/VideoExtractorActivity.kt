@@ -1,10 +1,15 @@
 package zaujaani.roadsensecollector
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.Dialog
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
@@ -25,10 +30,22 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.webkit.CookieManager
+import android.webkit.URLUtil
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -72,6 +89,10 @@ class VideoExtractorActivity : AppCompatActivity() {
     private var extractJob              : Job? = null
     private var wakeLock                : PowerManager.WakeLock? = null
 
+    // ── YouTube download ──────────────────────────────────────────────
+    private var activeDownloadId        : Long = -1L
+    private var downloadReceiver        : BroadcastReceiver? = null
+
     private val videoPickerLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -91,6 +112,22 @@ class VideoExtractorActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.permission_required), Toast.LENGTH_SHORT).show()
     }
 
+    // Crop launcher — menerima hasil dari CropActivity
+    private var pendingCropPosition = -1
+    private var onCropDone: ((String) -> Unit)? = null
+
+    private val cropLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result: ActivityResult ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val cropPath = result.data?.getStringExtra(CropActivity.EXTRA_CROP_PATH)
+            if (cropPath != null) {
+                onCropDone?.invoke(cropPath)
+            }
+        }
+        onCropDone = null
+    }
+
     // ── Lifecycle ─────────────────────────────────────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,7 +140,7 @@ class VideoExtractorActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         releaseWakeLock()
-        // Hapus semua file temp saat activity destroy
+        unregisterDownloadReceiver()
         clearTempFrames()
     }
 
@@ -139,6 +176,9 @@ class VideoExtractorActivity : AppCompatActivity() {
         binding.btnClearSelection.setOnClickListener { clearSelection() }
         binding.btnAssignFrames.setOnClickListener   { showAssignDialog() }
 
+        // ── YouTube button ────────────────────────────────────────────
+        binding.btnYoutube.setOnClickListener        { showYoutubeDialog() }
+
         binding.seekInterval.setOnSeekBarChangeListener(object :
             SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -150,7 +190,7 @@ class VideoExtractorActivity : AppCompatActivity() {
         })
     }
 
-    // ── Pick video ────────────────────────────────────────────────────
+    // ── Pick video dari storage ───────────────────────────────────────
     private fun pickVideo() {
         val perms = if (Build.VERSION.SDK_INT >= 33)
             arrayOf(Manifest.permission.READ_MEDIA_VIDEO)
@@ -161,6 +201,329 @@ class VideoExtractorActivity : AppCompatActivity() {
                 ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
             }) videoPickerLauncher.launch("video/*")
         else permissionLauncher.launch(perms)
+    }
+
+    // ── YouTube WebView Dialog ────────────────────────────────────────
+    @SuppressLint("SetJavaScriptEnabled") // JavaScript diperlukan untuk WebView YouTube/video
+    private fun showYoutubeDialog() {
+        val dialog = AlertDialog.Builder(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+            .create()
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFF121212.toInt())
+        }
+
+        // ── Top bar ───────────────────────────────────────────────────
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(8, 8, 8, 8)
+            setBackgroundColor(0xFF1E1E1E.toInt())
+        }
+
+        val btnClose = Button(this).apply {
+            setText(R.string.btn_close_x)
+            setBackgroundColor(0xFF333333.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            layoutParams = LinearLayout.LayoutParams(80, 80)
+        }
+
+        val etUrl = EditText(this).apply {
+            hint = getString(R.string.youtube_url_hint)
+            setTextColor(0xFFFFFFFF.toInt())
+            setHintTextColor(0xFF888888.toInt())
+            setBackgroundColor(0xFF333333.toInt())
+            setPadding(12, 8, 12, 8)
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+            maxLines = 1
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
+        }
+
+        val btnGo = Button(this).apply {
+            setText(R.string.btn_go)
+            setBackgroundColor(0xFF1565C0.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            layoutParams = LinearLayout.LayoutParams(120, 80)
+        }
+
+        topBar.addView(btnClose)
+        topBar.addView(etUrl)
+        topBar.addView(btnGo)
+
+        // ── Progress bar WebView ──────────────────────────────────────
+        val webProgress = ProgressBar(this, null,
+            android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 8
+            )
+        }
+
+        // ── Info bar ──────────────────────────────────────────────────
+        val tvInfo = TextView(this).apply {
+            setText(R.string.youtube_info_hint)
+            setTextColor(0xFFAAAAAA.toInt())
+            textSize = 11f
+            setPadding(12, 6, 12, 6)
+            setBackgroundColor(0xFF1A2A1A.toInt())
+        }
+
+        // ── Download button ───────────────────────────────────────────
+        val btnDownload = Button(this).apply {
+            setText(R.string.btn_download_extract)
+            setBackgroundColor(0xFF1B5E20.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 13f
+            setPadding(16, 12, 16, 12)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            isEnabled = false
+            alpha = 0.5f
+        }
+
+        // ── WebView ───────────────────────────────────────────────────
+        val webView = WebView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+            )
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                loadWithOverviewMode = true
+                useWideViewPort = true
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                userAgentString = getString(R.string.webview_user_agent)
+                setSupportZoom(true)
+                builtInZoomControls = true
+                displayZoomControls = false
+            }
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+        }
+
+        // Track URL saat ini di WebView
+        var currentWebUrl = ""
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView, request: WebResourceRequest
+            ): Boolean {
+                val url = request.url.toString()
+                if (url.startsWith("intent://")) return true
+                currentWebUrl = url
+                etUrl.setText(url)
+                return false
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                currentWebUrl = url ?: ""
+                if (!url.isNullOrEmpty()) etUrl.setText(url)
+                val isDirectVideo = url?.let { u ->
+                    u.contains(".mp4", ignoreCase = true) ||
+                            u.contains(".mkv", ignoreCase = true) ||
+                            u.contains(".webm", ignoreCase = true) ||
+                            u.contains(".3gp", ignoreCase = true) ||
+                            u.contains("video", ignoreCase = true) && !u.contains("youtube.com") && !u.contains("youtu.be")
+                } ?: false
+                btnDownload.isEnabled = isDirectVideo
+                btnDownload.alpha = if (isDirectVideo) 1f else 0.5f
+            }
+        }
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                webProgress.progress = newProgress
+                webProgress.visibility = if (newProgress < 100) View.VISIBLE else View.GONE
+            }
+        }
+
+        webView.setDownloadListener { url, _, contentDisposition, mimetype, _ ->
+            val filename = URLUtil.guessFileName(url, contentDisposition, mimetype)
+            if (mimetype?.startsWith("video") == true ||
+                filename.endsWith(".mp4") || filename.endsWith(".webm") ||
+                filename.endsWith(".mkv") || filename.endsWith(".3gp")) {
+                dialog.dismiss()
+                startDownloadAndExtract(url, filename)
+            } else {
+                Toast.makeText(this,
+                    getString(R.string.download_not_video, mimetype), Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        webView.loadUrl("https://m.youtube.com/results?search_query=road+damage+pothole+rutting")
+
+        // ── Button actions ────────────────────────────────────────────
+        btnGo.setOnClickListener {
+            val input = etUrl.text.toString().trim()
+            if (input.isBlank()) return@setOnClickListener
+            val url = if (input.startsWith("http")) input else "https://www.google.com/search?q=$input"
+            webView.loadUrl(url)
+        }
+
+        btnClose.setOnClickListener {
+            webView.destroy()
+            dialog.dismiss()
+        }
+
+        btnDownload.setOnClickListener {
+            val url = etUrl.text.toString().trim().ifEmpty { currentWebUrl }
+            if (url.isBlank()) {
+                Toast.makeText(this, getString(R.string.download_no_url), Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val filename = "yt_${System.currentTimeMillis()}.mp4"
+            dialog.dismiss()
+            webView.destroy()
+            startDownloadAndExtract(url, filename)
+        }
+
+        root.addView(topBar)
+        root.addView(webProgress)
+        root.addView(tvInfo)
+        root.addView(webView)
+        root.addView(btnDownload)
+
+        dialog.setView(root)
+        dialog.window?.apply {
+            setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT
+            )
+        }
+        dialog.show()
+    }
+
+    // ── Download via DownloadManager ──────────────────────────────────
+    private fun startDownloadAndExtract(url: String, filename: String) {
+        Toast.makeText(this,
+            getString(R.string.download_started, filename), Toast.LENGTH_LONG).show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(url, emptyMap())
+                val duration = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+                retriever.release()
+
+                if (duration > 0) {
+                    withContext(Dispatchers.Main) {
+                        val uri = Uri.parse(url)
+                        videoUri = uri
+                        loadVideoInfo(uri)
+                        binding.btnExtract.isEnabled = true
+                        Toast.makeText(
+                            this@VideoExtractorActivity,
+                            getString(R.string.stream_ready),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    return@launch
+                }
+            } catch (_: Exception) {
+                // Stream langsung gagal → fallback ke DownloadManager
+            }
+
+            withContext(Dispatchers.Main) {
+                try {
+                    val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                    val req = DownloadManager.Request(Uri.parse(url)).apply {
+                        setTitle(getString(R.string.download_title, filename))
+                        setDescription(getString(R.string.download_description))
+                        setNotificationVisibility(
+                            DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                        )
+                        setDestinationInExternalPublicDir(
+                            Environment.DIRECTORY_DOWNLOADS, "RoadSense/$filename"
+                        )
+                        addRequestHeader("User-Agent", getString(R.string.webview_user_agent))
+                    }
+                    activeDownloadId = dm.enqueue(req)
+                    registerDownloadReceiver()
+                    Toast.makeText(
+                        this@VideoExtractorActivity,
+                        getString(R.string.download_queued),
+                        Toast.LENGTH_LONG
+                    ).show()
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@VideoExtractorActivity,
+                        getString(R.string.download_failed, e.message),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    // ── DownloadManager receiver ──────────────────────────────────────
+    private fun registerDownloadReceiver() {
+        if (downloadReceiver != null) return
+        downloadReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                if (id != activeDownloadId) return
+
+                val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                val query = DownloadManager.Query().setFilterById(id)
+                val cursor = dm.query(query)
+
+                if (cursor.moveToFirst()) {
+                    val statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                    val status = cursor.getInt(statusCol)
+
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        val uriCol = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                        val localUri = cursor.getString(uriCol)
+                        cursor.close()
+
+                        val fileUri = Uri.parse(localUri)
+                        videoUri = fileUri
+                        loadVideoInfo(fileUri)
+                        binding.btnExtract.isEnabled = true
+                        Toast.makeText(
+                            this@VideoExtractorActivity,
+                            getString(R.string.download_complete),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else if (status == DownloadManager.STATUS_FAILED) {
+                        cursor.close()
+                        Toast.makeText(
+                            this@VideoExtractorActivity,
+                            getString(R.string.download_failed_retry),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } else {
+                    cursor.close()
+                }
+                unregisterDownloadReceiver()
+            }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                downloadReceiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(
+                downloadReceiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            )
+        }
+    }
+
+    private fun unregisterDownloadReceiver() {
+        downloadReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) {}
+            downloadReceiver = null
+        }
     }
 
     // ── Load video info ───────────────────────────────────────────────
@@ -199,12 +562,11 @@ class VideoExtractorActivity : AppCompatActivity() {
         binding.btnExtract.isEnabled   = false
         binding.btnPickVideo.isEnabled = false
 
-        acquireWakeLock()  // Cegah layar mati matikan proses
+        acquireWakeLock()
 
         extractJob = lifecycleScope.launch {
             val extracted = withContext(Dispatchers.IO) { extractFrames(uri) }
 
-            // Hanya update UI jika job belum di-cancel
             if (isActive) {
                 frames.addAll(extracted)
                 adapter.notifyItemRangeInserted(0, extracted.size)
@@ -228,7 +590,13 @@ class VideoExtractorActivity : AppCompatActivity() {
         val retriever = MediaMetadataRetriever()
 
         return try {
-            retriever.setDataSource(this, uri)
+            val uriStr = uri.toString()
+            if (uriStr.startsWith("http://") || uriStr.startsWith("https://")) {
+                retriever.setDataSource(uriStr, emptyMap())
+            } else {
+                retriever.setDataSource(this, uri)
+            }
+
             val durationMs = retriever.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: return result
             val intervalMs = intervalSeconds * 1000L
@@ -236,7 +604,6 @@ class VideoExtractorActivity : AppCompatActivity() {
             var frameIndex = 0
 
             while (currentMs <= durationMs) {
-                // Cek coroutine masih aktif — stop jika di-cancel
                 if (!extractJob!!.isActive) break
 
                 val bitmap = retriever.getFrameAtTime(
@@ -245,7 +612,6 @@ class VideoExtractorActivity : AppCompatActivity() {
                 )
 
                 if (bitmap != null) {
-                    // Simpan ke file temp, JANGAN simpan bitmap ke list
                     val thumbFile = File(cacheDir, "thumb_${frameIndex}_${currentMs}.jpg")
                     val saved = try {
                         thumbFile.outputStream().use { out ->
@@ -259,7 +625,6 @@ class VideoExtractorActivity : AppCompatActivity() {
                         result.add(VideoFrame(thumbFile.absolutePath, currentMs, isBlurry))
                     }
 
-                    // Recycle bitmap segera setelah dipakai
                     bitmap.recycle()
                     frameIndex++
 
@@ -324,6 +689,11 @@ class VideoExtractorActivity : AppCompatActivity() {
                 frames[position].selected = !frames[position].selected
                 adapter.notifyItemChanged(position)
                 updateFrameCount()
+                val msg = if (frames[position].selected)
+                    getString(R.string.frame_marked_hint)
+                else
+                    getString(R.string.frame_unmarked)
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
             }
         )
         binding.rvFrames.layoutManager = GridLayoutManager(this, 3)
@@ -356,7 +726,6 @@ class VideoExtractorActivity : AppCompatActivity() {
         val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
 
-        // Inflate dulu SEBELUM show() agar window siap
         val view = LayoutInflater.from(this)
             .inflate(R.layout.dialog_frame_preview, null)
         dialog.setContentView(view)
@@ -367,7 +736,6 @@ class VideoExtractorActivity : AppCompatActivity() {
             WindowManager.LayoutParams.MATCH_PARENT
         )
 
-        // show() dulu, BARU akses insetsController (decorView sudah attach)
         dialog.show()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -392,7 +760,19 @@ class VideoExtractorActivity : AppCompatActivity() {
         val btnToggleSelect = view.findViewById<TextView>(R.id.btnToggleSelect)
         val btnAssignDirect = view.findViewById<View>(R.id.btnAssignDirect)
 
-        // ── Pinch-to-zoom + pan ───────────────────────────────────────
+        // Tombol Crop — ditambahkan secara programmatic di bottom bar
+        val bottomBar = view.findViewById<LinearLayout>(R.id.bottomBar)
+        val btnCrop = Button(this).apply {
+            setText(R.string.btn_crop)
+            textSize = 12f
+            setTextColor(android.graphics.Color.WHITE)
+            backgroundTintList = ColorStateList.valueOf(0xFF6A1B9A.toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.5f
+            ).also { it.marginStart = 6 }
+        }
+        bottomBar?.addView(btnCrop, 0)
+
         val matrix      = Matrix()
         var scaleFactor = 1f
         var lastX       = 0f
@@ -442,11 +822,9 @@ class VideoExtractorActivity : AppCompatActivity() {
             true
         }
 
-        // ── Render frame ──────────────────────────────────────────────
         fun renderFrame(pos: Int) {
             val frame = frames[pos]
 
-            // Recycle bitmap lama sebelum load baru
             currentBitmap?.recycle()
             currentBitmap = frame.loadBitmap()
             val bmp = currentBitmap ?: return
@@ -480,14 +858,13 @@ class VideoExtractorActivity : AppCompatActivity() {
             btnToggleSelect.text = getString(
                 if (isSelected) R.string.btn_frame_selected else R.string.btn_frame_select
             )
-            (btnToggleSelect as? android.widget.Button)?.backgroundTintList =
+            (btnToggleSelect as? Button)?.backgroundTintList =
                 ColorStateList.valueOf(
                     ContextCompat.getColor(this,
                         if (isSelected) R.color.select_active else R.color.select_inactive)
                 )
         }
 
-        // Recycle bitmap saat dialog ditutup
         dialog.setOnDismissListener {
             currentBitmap?.recycle()
             currentBitmap = null
@@ -495,7 +872,6 @@ class VideoExtractorActivity : AppCompatActivity() {
 
         renderFrame(currentPos)
 
-        // ── Navigation ────────────────────────────────────────────────
         btnPrev.setOnClickListener {
             if (currentPos > 0) { currentPos--; renderFrame(currentPos) }
         }
@@ -509,18 +885,101 @@ class VideoExtractorActivity : AppCompatActivity() {
             renderFrame(currentPos)
         }
         btnAssignDirect.setOnClickListener {
-            dialog.dismiss()
-            if (frames.none { it.selected }) {
-                frames[currentPos].selected = true
+            showAssignForFrame(currentPos) { cls ->
                 adapter.notifyItemChanged(currentPos)
                 updateFrameCount()
+                Toast.makeText(
+                    this,
+                    getString(R.string.assign_direct_success, cls.code, cls.nameId),
+                    Toast.LENGTH_SHORT
+                ).show()
+                if (currentPos < frames.size - 1) {
+                    currentPos++
+                    renderFrame(currentPos)
+                }
             }
-            showAssignDialog()
         }
+        btnCrop.setOnClickListener {
+            val frame = frames[currentPos]
+            onCropDone = { cropPath ->
+                val classList = RoadClasses.ALL_CLASSES
+                val names = classList.map {
+                    getString(R.string.class_name_format, it.code, it.nameId)
+                }.toTypedArray()
+
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.assign_crop_title))
+                    .setItems(names) { _, which ->
+                        val cls = classList[which]
+                        lifecycleScope.launch {
+                            val saved = withContext(Dispatchers.IO) {
+                                val bmp = BitmapFactory.decodeFile(cropPath)
+                                if (bmp != null) {
+                                    val result = saveFrameToClass(bmp, cls)
+                                    bmp.recycle()
+                                    try { File(cropPath).delete() } catch (_: Exception) {}
+                                    result
+                                } else false
+                            }
+                            if (saved) {
+                                CollectorStats.recalculateFromDisk(this@VideoExtractorActivity)
+                                Toast.makeText(
+                                    this@VideoExtractorActivity,
+                                    getString(R.string.assign_crop_success, cls.code, cls.nameId),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                if (currentPos < frames.size - 1) {
+                                    currentPos++
+                                    renderFrame(currentPos)
+                                }
+                            } else {
+                                Toast.makeText(this@VideoExtractorActivity,
+                                    getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
+            }
+            cropLauncher.launch(CropActivity.intent(this, frame.thumbPath))
+        }
+
         btnClose.setOnClickListener { dialog.dismiss() }
     }
 
     // ── Assign ke class ───────────────────────────────────────────────
+    private fun showAssignForFrame(position: Int, onDone: (RoadClasses.RoadClass) -> Unit) {
+        val classList = RoadClasses.ALL_CLASSES
+        val names = classList.map {
+            getString(R.string.class_name_format, it.code, it.nameId)
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.assign_frame_title))
+            .setItems(names) { _, which ->
+                val cls = classList[which]
+                lifecycleScope.launch {
+                    val saved = withContext(Dispatchers.IO) {
+                        val bmp = frames[position].loadBitmap()
+                        if (bmp != null) {
+                            val result = saveFrameToClass(bmp, cls)
+                            bmp.recycle()
+                            result
+                        } else false
+                    }
+                    if (saved) {
+                        CollectorStats.recalculateFromDisk(this@VideoExtractorActivity)
+                        onDone(cls)
+                    } else {
+                        Toast.makeText(this@VideoExtractorActivity,
+                            getString(R.string.frame_save_failed), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
     private fun showAssignDialog() {
         val selected = frames.filter { it.selected }
         if (selected.isEmpty()) return
@@ -618,7 +1077,7 @@ class VideoFrameAdapter(
         val tvTimestamp    : TextView  = view.findViewById(R.id.tvTimestamp)
         val tvBlur         : TextView  = view.findViewById(R.id.tvBlur)
         val tvTapHint      : TextView  = view.findViewById(R.id.tvTapHint)
-        var thumbBitmap    : Bitmap?   = null  // track untuk recycle
+        var thumbBitmap    : Bitmap?   = null
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -631,7 +1090,6 @@ class VideoFrameAdapter(
         val frame      = frames[position]
         val isSelected = frame.selected
 
-        // Recycle bitmap lama sebelum load baru
         holder.thumbBitmap?.recycle()
         holder.thumbBitmap = frame.loadBitmap()
         holder.img.setImageBitmap(holder.thumbBitmap)
@@ -643,7 +1101,9 @@ class VideoFrameAdapter(
         holder.tvBlur.visibility          = if (frame.isBlurry) View.VISIBLE else View.GONE
         holder.overlaySelected.visibility = if (isSelected) View.VISIBLE else View.GONE
         holder.tvCheck.visibility         = if (isSelected) View.VISIBLE else View.GONE
-        holder.tvTapHint.visibility       = if (isSelected) View.GONE    else View.VISIBLE
+        holder.tvTapHint.text             = if (isSelected) "" else
+            holder.itemView.context.getString(R.string.frame_tap_hint)
+        holder.tvTapHint.visibility       = if (isSelected) View.GONE else View.VISIBLE
 
         holder.itemView.setOnClickListener { onPreview(holder.bindingAdapterPosition) }
         holder.itemView.setOnLongClickListener {

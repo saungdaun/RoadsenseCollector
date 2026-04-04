@@ -11,7 +11,7 @@
         android:id="@+id/btnBack"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="← Kembali"
+        android:text="@string/btn_back"
         android:backgroundTint="@color/bg_card"
         android:textSize="12sp"
         app:layout_constraintTop_toTopOf="parent"
@@ -22,7 +22,7 @@
         android:id="@+id/tvTitle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="🎬 Extract Frame Video"
+        android:text="@string/video_extractor_title"
         android:textColor="@color/text_primary"
         android:textSize="15sp"
         android:textStyle="bold"
@@ -36,7 +36,7 @@
         android:id="@+id/tvFrameCount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="0 frame"
+        android:text="@string/frame_count_default"
         android:textColor="@color/accent"
         android:textSize="12sp"
         app:layout_constraintTop_toTopOf="parent"
@@ -48,7 +48,7 @@
         android:id="@+id/tvVideoInfo"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Belum ada video dipilih"
+        android:text="@string/video_info_default"
         android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:padding="8dp"
@@ -70,16 +70,35 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
-            android:id="@+id/btnPickVideo"
+        <!-- Kolom kiri: tombol pick video + YouTube -->
+        <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="📂 Pilih Video"
-            android:backgroundTint="@color/primary"
-            android:textSize="11sp"
-            android:layout_marginEnd="4dp" />
+            android:orientation="vertical"
+            android:layout_marginEnd="4dp">
 
+            <Button
+                android:id="@+id/btnPickVideo"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="@string/btn_pick_video"
+                android:backgroundTint="@color/primary"
+                android:textSize="11sp"
+                android:layout_marginBottom="4dp" />
+
+            <Button
+                android:id="@+id/btnYoutube"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="@string/btn_search_web"
+                android:backgroundTint="@color/youtube_red"
+                android:textColor="@android:color/white"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <!-- Kolom tengah: interval slider -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -89,7 +108,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Interval extract (detik):"
+                android:text="@string/label_interval"
                 android:textColor="@color/text_secondary"
                 android:textSize="10sp" />
 
@@ -98,25 +117,27 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="10"
-                android:progress="2" />
+                android:progress="2"
+                android:contentDescription="@string/seekbar_interval_desc" />
 
             <TextView
                 android:id="@+id/tvInterval"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Setiap 2 detik"
+                android:text="@string/interval_default"
                 android:textColor="@color/accent"
                 android:textSize="10sp" />
 
         </LinearLayout>
 
+        <!-- Kolom kanan: extract button -->
         <Button
             android:id="@+id/btnExtract"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="match_parent"
             android:layout_weight="1"
-            android:text="⚡ Extract"
-            android:backgroundTint="#1B5E20"
+            android:text="@string/btn_extract"
+            android:backgroundTint="@color/extract_green"
             android:textSize="11sp"
             android:layout_marginStart="4dp"
             android:enabled="false" />
@@ -152,6 +173,7 @@
         android:id="@+id/rvFrames"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:contentDescription="@string/rv_frames_desc"
         app:layout_constraintTop_toBottomOf="@id/tvProgress"
         app:layout_constraintBottom_toTopOf="@id/bottomBar"
         app:layout_constraintStart_toStartOf="parent"
@@ -174,7 +196,7 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:text="☑ Semua"
+            android:text="@string/btn_select_all"
             android:backgroundTint="@color/bg_item"
             android:textSize="11sp"
             android:layout_marginEnd="4dp" />
@@ -184,7 +206,7 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:text="✕ Batal"
+            android:text="@string/btn_cancel"
             android:backgroundTint="@color/bg_item"
             android:textSize="11sp"
             android:layout_marginEnd="4dp" />
@@ -194,7 +216,7 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="2"
-            android:text="📁 Assign ke Class →"
+            android:text="@string/btn_assign_class"
             android:backgroundTint="@color/primary"
             android:textSize="11sp"
             android:enabled="false" />
