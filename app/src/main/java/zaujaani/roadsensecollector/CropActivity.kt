@@ -42,6 +42,7 @@ class CropActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_IMAGE_PATH = "extra_image_path"
+        const val EXTRA_SOURCE_URI = "extra_source_uri"   // URI dari MediaStore/Gallery
         const val EXTRA_CROP_PATH  = "extra_crop_path"
 
         fun intent(context: Context, imagePath: String): Intent =
@@ -70,17 +71,27 @@ class CropActivity : AppCompatActivity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
 
-        imagePath = intent.getStringExtra(EXTRA_IMAGE_PATH) ?: run {
-            setResult(Activity.RESULT_CANCELED)
-            finish()
-            return
-        }
-
-        sourceBitmap = BitmapFactory.decodeFile(imagePath) ?: run {
-            Toast.makeText(this, getString(R.string.crop_error_open), Toast.LENGTH_SHORT).show()
-            setResult(Activity.RESULT_CANCELED)
-            finish()
-            return
+        // Support URI (dari Gallery) atau path file biasa
+        val sourceUriStr = intent.getStringExtra(EXTRA_SOURCE_URI)
+        if (sourceUriStr != null) {
+            try {
+                val uri = android.net.Uri.parse(sourceUriStr)
+                val inputStream = contentResolver.openInputStream(uri)
+                sourceBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+            } catch (_: Exception) {}
+            if (sourceBitmap == null) {
+                Toast.makeText(this, getString(R.string.crop_error_open), Toast.LENGTH_SHORT).show()
+                setResult(Activity.RESULT_CANCELED); finish(); return
+            }
+        } else {
+            imagePath = intent.getStringExtra(EXTRA_IMAGE_PATH) ?: run {
+                setResult(Activity.RESULT_CANCELED); finish(); return
+            }
+            sourceBitmap = BitmapFactory.decodeFile(imagePath) ?: run {
+                Toast.makeText(this, getString(R.string.crop_error_open), Toast.LENGTH_SHORT).show()
+                setResult(Activity.RESULT_CANCELED); finish(); return
+            }
         }
 
         buildUI()

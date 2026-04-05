@@ -28,29 +28,42 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <activity android:name=".CollectorActivity" />
-        <activity android:name=".LibraryActivity" />
-        <activity android:name=".StatsActivity" />
-        <activity android:name=".ExportActivity" />
-        <activity android:name=".PhotoViewerActivity" />
-        <activity android:name=".GalleryBrowserActivity" />
+        <activity
+            android:name=".CollectorActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
+
+        <activity
+            android:name=".LibraryActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
+
+        <activity
+            android:name=".StatsActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
+
+        <activity
+            android:name=".ExportActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
+
+        <activity
+            android:name=".PhotoViewerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
+
+        <activity
+            android:name=".GalleryBrowserActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
+
         <activity
             android:name=".VideoExtractorActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
 
-        <!--
-            CropActivity: fullscreen dihandle via WindowManager.FLAG_FULLSCREEN di kode
-            (sudah diberi @Suppress("DEPRECATION")).
-            Theme NoActionBar dipakai agar tidak ada title bar tanpa bergantung
-            pada android:style/Theme.Black.NoTitleBar.Fullscreen yang deprecated.
-        -->
         <activity
             android:name=".CropActivity"
             android:screenOrientation="portrait"

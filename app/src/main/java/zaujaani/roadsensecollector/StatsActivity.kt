@@ -37,15 +37,18 @@ class StatsActivity : AppCompatActivity() {
         binding.tvTotalAll.text  = getString(R.string.stats_total_all, total)
 
         val minRecommended = 50
-        val classesReady   = stats.count { it.value >= minRecommended }
+        // Fix: getAllClasses(this) supaya kelas custom ikut terhitung dalam readiness
+        val allClasses   = RoadClasses.getAllClasses(this)
+        val classesReady = stats.count { it.value >= minRecommended }
         binding.tvReadiness.text = getString(
             R.string.stats_readiness,
             minRecommended,
             classesReady,
-            RoadClasses.ALL_CLASSES.size
+            allClasses.size
         )
 
-        val statItems = RoadClasses.ALL_CLASSES.map { cls ->
+        // Fix: pakai allClasses (built-in + custom) bukan ALL_CLASSES (built-in saja)
+        val statItems = allClasses.map { cls ->
             StatItem(cls, stats[cls.code] ?: 0, maxVal, minRecommended)
         }.sortedByDescending { it.count }
 
@@ -80,9 +83,11 @@ class StatsAdapter(private val items: List<StatItem>) :
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        val item      = items[position]
-        val cls       = item.cls
-        val parsedColor = Color.parseColor(cls.colorHex)
+        val item        = items[position]
+        val cls         = item.cls
+        val parsedColor = try {
+            Color.parseColor(cls.colorHex)
+        } catch (_: Exception) { Color.GRAY }
 
         holder.tvCode.text  = cls.code
         holder.tvName.text  = cls.nameId
@@ -91,8 +96,8 @@ class StatsAdapter(private val items: List<StatItem>) :
 
         holder.indicator.setBackgroundColor(parsedColor)
 
-        holder.progressBar.max           = item.maxCount
-        holder.progressBar.progress      = item.count
+        holder.progressBar.max      = item.maxCount.coerceAtLeast(1)
+        holder.progressBar.progress = item.count
         holder.progressBar.progressTintList = ColorStateList.valueOf(parsedColor)
 
         holder.tvStatus.text = holder.itemView.context.getString(

@@ -6,71 +6,61 @@
     android:layout_height="match_parent"
     android:background="@color/bg_dark">
 
-    <!-- Header -->
-    <Button
-        android:id="@+id/btnBack"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_back"
-        android:backgroundTint="@color/bg_card"
-        android:textSize="12sp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_margin="8dp" />
-
-    <TextView
-        android:id="@+id/tvTitle"
+    <!-- Compact header strip -->
+    <LinearLayout
+        android:id="@+id/headerStrip"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/video_extractor_title"
-        android:textColor="@color/text_primary"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toEndOf="@id/btnBack"
-        app:layout_constraintEnd_toStartOf="@id/tvFrameCount"
-        android:layout_marginTop="14dp" />
-
-    <TextView
-        android:id="@+id/tvFrameCount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/frame_count_default"
-        android:textColor="@color/accent"
-        android:textSize="12sp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp" />
-
-    <!-- Video info bar -->
-    <TextView
-        android:id="@+id/tvVideoInfo"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/video_info_default"
-        android:textColor="@color/text_secondary"
-        android:textSize="12sp"
-        android:padding="8dp"
+        android:orientation="horizontal"
         android:background="@color/bg_card"
-        android:gravity="center"
-        app:layout_constraintTop_toBottomOf="@id/btnBack"
+        android:padding="4dp"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <!-- Controls -->
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="@string/btn_back"
+            android:backgroundTint="@color/bg_item"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/video_extractor_title"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tvFrameCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/frame_count_default"
+            android:textColor="@color/accent"
+            android:textSize="12sp"
+            android:paddingEnd="10dp" />
+    </LinearLayout>
+
+    <!-- Video info + Controls panel -->
     <LinearLayout
         android:id="@+id/layoutControls"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp"
+        android:padding="6dp"
         android:background="@color/bg_card"
-        app:layout_constraintTop_toBottomOf="@id/tvVideoInfo"
+        app:layout_constraintTop_toBottomOf="@id/headerStrip"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Kolom kiri: tombol pick video + YouTube -->
+        <!-- Kiri: pick + web -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -81,29 +71,38 @@
             <Button
                 android:id="@+id/btnPickVideo"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="38dp"
                 android:text="@string/btn_pick_video"
                 android:backgroundTint="@color/primary"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:layout_marginBottom="4dp" />
 
             <Button
                 android:id="@+id/btnYoutube"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="38dp"
                 android:text="@string/btn_search_web"
                 android:backgroundTint="@color/youtube_red"
                 android:textColor="@android:color/white"
-                android:textSize="11sp" />
-
+                android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- Kolom tengah: interval slider -->
+        <!-- Tengah: interval + video info -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="2"
             android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvVideoInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/video_info_default"
+                android:textColor="@color/text_secondary"
+                android:textSize="10sp"
+                android:gravity="center"
+                android:layout_marginBottom="2dp" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -127,10 +126,9 @@
                 android:text="@string/interval_default"
                 android:textColor="@color/accent"
                 android:textSize="10sp" />
-
         </LinearLayout>
 
-        <!-- Kolom kanan: extract button -->
+        <!-- Kanan: extract -->
         <Button
             android:id="@+id/btnExtract"
             android:layout_width="0dp"
@@ -141,7 +139,6 @@
             android:textSize="11sp"
             android:layout_marginStart="4dp"
             android:enabled="false" />
-
     </LinearLayout>
 
     <!-- Progress -->
@@ -186,7 +183,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:background="@color/bg_card"
-        android:padding="8dp"
+        android:padding="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -220,7 +217,6 @@
             android:backgroundTint="@color/primary"
             android:textSize="11sp"
             android:enabled="false" />
-
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -29,6 +29,8 @@ object CollectorStats {
         } catch (e: Exception) { null }
     }
 
+    // ── GPS JSON sidecar ──────────────────────────────────────────────
+    // Fix: pakai byCodeCtx supaya kelas custom juga dapat GPS JSON
     fun saveGpsJson(
         context: Context,
         classCode: String,
@@ -36,8 +38,8 @@ object CollectorStats {
         location: Location?
     ) {
         try {
-            val cls     = RoadClasses.BY_CODE[classCode] ?: return
-            val folder  = getClassFolder(context, classCode) ?: return
+            val cls    = RoadClasses.byCodeCtx(context, classCode) ?: return
+            val folder = getClassFolder(context, classCode)         ?: return
             folder.mkdirs()
 
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
@@ -56,9 +58,9 @@ object CollectorStats {
             }
 
             val jsonFile = File(folder,
-                photoFilename.replace(".jpg", ".json")
+                photoFilename.replace(".jpg",  ".json")
                     .replace(".jpeg", ".json")
-                    .replace(".png", ".json"))
+                    .replace(".png",  ".json"))
             jsonFile.writeText(json.toString(2))
         } catch (e: Exception) {
             e.printStackTrace()
@@ -77,20 +79,23 @@ object CollectorStats {
             .getInt(classCode, 0)
     }
 
+    // Fix: hitung semua kelas (built-in + custom)
     fun getTotal(context: Context): Int {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return RoadClasses.ALL_CLASSES.sumOf { prefs.getInt(it.code, 0) }
+        return RoadClasses.getAllClasses(context).sumOf { prefs.getInt(it.code, 0) }
     }
 
+    // Fix: kembalikan stats semua kelas (built-in + custom)
     fun getAllStats(context: Context): Map<String, Int> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return RoadClasses.ALL_CLASSES.associate { it.code to prefs.getInt(it.code, 0) }
+        return RoadClasses.getAllClasses(context).associate { it.code to prefs.getInt(it.code, 0) }
     }
 
+    // Fix: recalculate dari disk untuk semua kelas (built-in + custom)
     fun recalculateFromDisk(context: Context) {
         val prefs  = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val editor = prefs.edit()
-        RoadClasses.ALL_CLASSES.forEach { cls ->
+        RoadClasses.getAllClasses(context).forEach { cls ->
             val folder = getClassFolder(context, cls.code)
             val count  = folder?.listFiles()
                 ?.count { it.extension.lowercase() == "jpg" } ?: 0
@@ -99,8 +104,9 @@ object CollectorStats {
         editor.apply()
     }
 
+    // Fix: pakai byCodeCtx supaya folder kelas custom juga ditemukan
     fun getClassFolder(context: Context, classCode: String): File? {
-        val cls  = RoadClasses.BY_CODE[classCode] ?: return null
+        val cls  = RoadClasses.byCodeCtx(context, classCode) ?: return null
         val base = android.os.Environment.getExternalStoragePublicDirectory(
             android.os.Environment.DIRECTORY_PICTURES
         )

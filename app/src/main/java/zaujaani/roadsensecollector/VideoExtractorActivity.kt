@@ -85,7 +85,7 @@ class VideoExtractorActivity : AppCompatActivity() {
     private val frames                  = mutableListOf<VideoFrame>()
     private lateinit var adapter        : VideoFrameAdapter
     private var videoUri                : Uri? = null
-    private var intervalSeconds         = 2
+    private var intervalSeconds         = 3
     private var extractJob              : Job? = null
     private var wakeLock                : PowerManager.WakeLock? = null
 
@@ -203,86 +203,142 @@ class VideoExtractorActivity : AppCompatActivity() {
         else permissionLauncher.launch(perms)
     }
 
-    // ── YouTube WebView Dialog ────────────────────────────────────────
-    @SuppressLint("SetJavaScriptEnabled") // JavaScript diperlukan untuk WebView YouTube/video
+    // ── Browser Video Dialog (YouTube / Facebook / URL apapun) ──────────
+    @SuppressLint("SetJavaScriptEnabled")
     private fun showYoutubeDialog() {
         val dialog = AlertDialog.Builder(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
             .create()
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF121212.toInt())
+            setBackgroundColor(0xFF0D0D0D.toInt())
         }
 
-        // ── Top bar ───────────────────────────────────────────────────
-        val topBar = LinearLayout(this).apply {
+        // ── Row 1: Close + Title ──────────────────────────────────────
+        val titleBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(8, 8, 8, 8)
-            setBackgroundColor(0xFF1E1E1E.toInt())
+            setBackgroundColor(0xFF1A1A1A.toInt())
+            setPadding(8, 6, 8, 6)
+            gravity = android.view.Gravity.CENTER_VERTICAL
         }
 
         val btnClose = Button(this).apply {
             setText(R.string.btn_close_x)
-            setBackgroundColor(0xFF333333.toInt())
+            setBackgroundColor(0xFF3A3A3A.toInt())
             setTextColor(0xFFFFFFFF.toInt())
-            layoutParams = LinearLayout.LayoutParams(80, 80)
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(88, 72)
+        }
+
+        val tvBrowserTitle = TextView(this).apply {
+            text = "🌐 Browser Video"
+            textSize = 14f
+            setTextColor(0xFFFFFFFF.toInt())
+            gravity = android.view.Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        // Tombol shortcut: YouTube | Facebook | Custom
+        val btnShortcutYt = Button(this).apply {
+            text = "YT"
+            setBackgroundColor(0xFFCC0000.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 10f
+            layoutParams = LinearLayout.LayoutParams(72, 72).also { it.marginEnd = 4 }
+        }
+        val btnShortcutFb = Button(this).apply {
+            text = "FB"
+            setBackgroundColor(0xFF1877F2.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 10f
+            layoutParams = LinearLayout.LayoutParams(72, 72)
+        }
+
+        titleBar.addView(btnClose)
+        titleBar.addView(tvBrowserTitle)
+        titleBar.addView(btnShortcutYt)
+        titleBar.addView(btnShortcutFb)
+
+        // ── Row 2: Nav buttons + Address bar + Go ─────────────────────
+        val navBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(0xFF222222.toInt())
+            setPadding(6, 4, 6, 4)
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+
+        val btnNavBack = Button(this).apply {
+            text = "◀"
+            setBackgroundColor(0xFF333333.toInt())
+            setTextColor(0xFFCCCCCC.toInt())
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(72, 80)
+        }
+        val btnNavForward = Button(this).apply {
+            text = "▶"
+            setBackgroundColor(0xFF333333.toInt())
+            setTextColor(0xFFCCCCCC.toInt())
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(72, 80).also { it.marginStart = 4 }
+        }
+        val btnNavRefresh = Button(this).apply {
+            text = "↺"
+            setBackgroundColor(0xFF333333.toInt())
+            setTextColor(0xFFCCCCCC.toInt())
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(72, 80).also { it.marginStart = 4 }
         }
 
         val etUrl = EditText(this).apply {
-            hint = getString(R.string.youtube_url_hint)
+            hint = "URL atau kata kunci pencarian…"
             setTextColor(0xFFFFFFFF.toInt())
-            setHintTextColor(0xFF888888.toInt())
-            setBackgroundColor(0xFF333333.toInt())
-            setPadding(12, 8, 12, 8)
+            setHintTextColor(0xFF666666.toInt())
+            setBackgroundColor(0xFF2E2E2E.toInt())
+            setPadding(14, 0, 14, 0)
             layoutParams = LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            )
+                0, 80, 1f
+            ).also { it.marginStart = 6; it.marginEnd = 6 }
             maxLines = 1
-            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI or
+                    android.text.InputType.TYPE_CLASS_TEXT
+            textSize = 12f
         }
 
         val btnGo = Button(this).apply {
             setText(R.string.btn_go)
             setBackgroundColor(0xFF1565C0.toInt())
             setTextColor(0xFFFFFFFF.toInt())
-            layoutParams = LinearLayout.LayoutParams(120, 80)
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(100, 80)
         }
 
-        topBar.addView(btnClose)
-        topBar.addView(etUrl)
-        topBar.addView(btnGo)
+        navBar.addView(btnNavBack)
+        navBar.addView(btnNavForward)
+        navBar.addView(btnNavRefresh)
+        navBar.addView(etUrl)
+        navBar.addView(btnGo)
 
-        // ── Progress bar WebView ──────────────────────────────────────
+        // ── Progress bar ──────────────────────────────────────────────
         val webProgress = ProgressBar(this, null,
             android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
             layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 8
+                LinearLayout.LayoutParams.MATCH_PARENT, 6
             )
+            visibility = View.GONE
         }
 
         // ── Info bar ──────────────────────────────────────────────────
+        // Penjelasan jujur: YouTube tidak bisa didownload via DownloadManager karena enkripsi.
+        // Yang bisa: video langsung (.mp4/.webm) dari situs lain, atau screen record manual.
         val tvInfo = TextView(this).apply {
-            setText(R.string.youtube_info_hint)
-            setTextColor(0xFFAAAAAA.toInt())
-            textSize = 11f
+            text = "ℹ️ YouTube & Facebook tidak bisa didownload otomatis (terenkripsi). " +
+                    "Tombol Download aktif hanya untuk video langsung (.mp4/.webm). " +
+                    "Alternatif: tonton di sini → screen record HP."
+            setTextColor(0xFFBBBBBB.toInt())
+            textSize = 10f
             setPadding(12, 6, 12, 6)
-            setBackgroundColor(0xFF1A2A1A.toInt())
-        }
-
-        // ── Download button ───────────────────────────────────────────
-        val btnDownload = Button(this).apply {
-            setText(R.string.btn_download_extract)
-            setBackgroundColor(0xFF1B5E20.toInt())
-            setTextColor(0xFFFFFFFF.toInt())
-            textSize = 13f
-            setPadding(16, 12, 16, 12)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            isEnabled = false
-            alpha = 0.5f
+            setBackgroundColor(0xFF1A1F1A.toInt())
         }
 
         // ── WebView ───────────────────────────────────────────────────
@@ -300,12 +356,40 @@ class VideoExtractorActivity : AppCompatActivity() {
                 setSupportZoom(true)
                 builtInZoomControls = true
                 displayZoomControls = false
+                mediaPlaybackRequiresUserGesture = false
             }
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         }
 
-        // Track URL saat ini di WebView
+        // ── Download button (bawah, hanya aktif kalau URL direct video) ─
+        val btnDownload = Button(this).apply {
+            setText(R.string.btn_download_extract)
+            setBackgroundColor(0xFF1B5E20.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 13f
+            setPadding(16, 14, 16, 14)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            isEnabled = false
+            alpha = 0.4f
+        }
+
         var currentWebUrl = ""
+
+        fun isDirectVideoUrl(url: String?): Boolean {
+            if (url.isNullOrEmpty()) return false
+            return url.contains(".mp4", ignoreCase = true) ||
+                    url.contains(".mkv", ignoreCase = true) ||
+                    url.contains(".webm", ignoreCase = true) ||
+                    url.contains(".3gp", ignoreCase = true) ||
+                    (url.contains("video", ignoreCase = true) &&
+                            !url.contains("youtube.com") &&
+                            !url.contains("youtu.be") &&
+                            !url.contains("facebook.com") &&
+                            !url.contains("fb.watch"))
+        }
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
@@ -321,22 +405,18 @@ class VideoExtractorActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 currentWebUrl = url ?: ""
                 if (!url.isNullOrEmpty()) etUrl.setText(url)
-                val isDirectVideo = url?.let { u ->
-                    u.contains(".mp4", ignoreCase = true) ||
-                            u.contains(".mkv", ignoreCase = true) ||
-                            u.contains(".webm", ignoreCase = true) ||
-                            u.contains(".3gp", ignoreCase = true) ||
-                            u.contains("video", ignoreCase = true) && !u.contains("youtube.com") && !u.contains("youtu.be")
-                } ?: false
-                btnDownload.isEnabled = isDirectVideo
-                btnDownload.alpha = if (isDirectVideo) 1f else 0.5f
+                val isDirect = isDirectVideoUrl(url)
+                btnDownload.isEnabled = isDirect
+                btnDownload.alpha     = if (isDirect) 1f else 0.4f
+                btnNavBack.alpha    = if (view?.canGoBack() == true) 1f else 0.35f
+                btnNavForward.alpha = if (view?.canGoForward() == true) 1f else 0.35f
             }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                webProgress.progress = newProgress
                 webProgress.visibility = if (newProgress < 100) View.VISIBLE else View.GONE
+                webProgress.progress   = newProgress
             }
         }
 
@@ -345,6 +425,7 @@ class VideoExtractorActivity : AppCompatActivity() {
             if (mimetype?.startsWith("video") == true ||
                 filename.endsWith(".mp4") || filename.endsWith(".webm") ||
                 filename.endsWith(".mkv") || filename.endsWith(".3gp")) {
+                webView.destroy()
                 dialog.dismiss()
                 startDownloadAndExtract(url, filename)
             } else {
@@ -353,14 +434,38 @@ class VideoExtractorActivity : AppCompatActivity() {
             }
         }
 
+        // Default: search YouTube mobile
         webView.loadUrl("https://m.youtube.com/results?search_query=road+damage+pothole+rutting")
+        etUrl.setText("https://m.youtube.com/results?search_query=road+damage+pothole+rutting")
 
-        // ── Button actions ────────────────────────────────────────────
+        // ── Actions ───────────────────────────────────────────────────
+        fun navigateTo(url: String) {
+            val target = if (url.startsWith("http")) url
+            else "https://www.google.com/search?q=${Uri.encode(url)}"
+            webView.loadUrl(target)
+            etUrl.setText(target)
+        }
+
         btnGo.setOnClickListener {
             val input = etUrl.text.toString().trim()
-            if (input.isBlank()) return@setOnClickListener
-            val url = if (input.startsWith("http")) input else "https://www.google.com/search?q=$input"
-            webView.loadUrl(url)
+            if (input.isNotBlank()) navigateTo(input)
+        }
+
+        etUrl.setOnEditorActionListener { _, _, _ ->
+            val input = etUrl.text.toString().trim()
+            if (input.isNotBlank()) navigateTo(input)
+            true
+        }
+
+        btnNavBack.setOnClickListener    { if (webView.canGoBack())    webView.goBack() }
+        btnNavForward.setOnClickListener { if (webView.canGoForward()) webView.goForward() }
+        btnNavRefresh.setOnClickListener { webView.reload() }
+
+        btnShortcutYt.setOnClickListener {
+            navigateTo("https://m.youtube.com/results?search_query=road+damage+pothole")
+        }
+        btnShortcutFb.setOnClickListener {
+            navigateTo("https://m.facebook.com")
         }
 
         btnClose.setOnClickListener {
@@ -369,18 +474,19 @@ class VideoExtractorActivity : AppCompatActivity() {
         }
 
         btnDownload.setOnClickListener {
-            val url = etUrl.text.toString().trim().ifEmpty { currentWebUrl }
+            val url = currentWebUrl.ifEmpty { etUrl.text.toString().trim() }
             if (url.isBlank()) {
                 Toast.makeText(this, getString(R.string.download_no_url), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val filename = "yt_${System.currentTimeMillis()}.mp4"
-            dialog.dismiss()
+            val filename = "video_${System.currentTimeMillis()}.mp4"
             webView.destroy()
+            dialog.dismiss()
             startDownloadAndExtract(url, filename)
         }
 
-        root.addView(topBar)
+        root.addView(titleBar)
+        root.addView(navBar)
         root.addView(webProgress)
         root.addView(tvInfo)
         root.addView(webView)
@@ -902,7 +1008,7 @@ class VideoExtractorActivity : AppCompatActivity() {
         btnCrop.setOnClickListener {
             val frame = frames[currentPos]
             onCropDone = { cropPath ->
-                val classList = RoadClasses.ALL_CLASSES
+                val classList = RoadClasses.getActiveClasses(this)
                 val names = classList.map {
                     getString(R.string.class_name_format, it.code, it.nameId)
                 }.toTypedArray()
@@ -949,7 +1055,7 @@ class VideoExtractorActivity : AppCompatActivity() {
 
     // ── Assign ke class ───────────────────────────────────────────────
     private fun showAssignForFrame(position: Int, onDone: (RoadClasses.RoadClass) -> Unit) {
-        val classList = RoadClasses.ALL_CLASSES
+        val classList = RoadClasses.getActiveClasses(this)
         val names = classList.map {
             getString(R.string.class_name_format, it.code, it.nameId)
         }.toTypedArray()
@@ -984,7 +1090,7 @@ class VideoExtractorActivity : AppCompatActivity() {
         val selected = frames.filter { it.selected }
         if (selected.isEmpty()) return
 
-        val classList = RoadClasses.ALL_CLASSES
+        val classList = RoadClasses.getActiveClasses(this)
         val names     = classList.map {
             getString(R.string.class_name_format, it.code, it.nameId)
         }.toTypedArray()
@@ -1090,9 +1196,13 @@ class VideoFrameAdapter(
         val frame      = frames[position]
         val isSelected = frame.selected
 
+        // Fix: gunakan Glide supaya decode file tidak blocking main thread (cegah ANR)
         holder.thumbBitmap?.recycle()
-        holder.thumbBitmap = frame.loadBitmap()
-        holder.img.setImageBitmap(holder.thumbBitmap)
+        holder.thumbBitmap = null
+        com.bumptech.glide.Glide.with(holder.itemView.context)
+            .load(java.io.File(frame.thumbPath))
+            .centerCrop()
+            .into(holder.img)
 
         val seconds = frame.timeMs / 1000
         holder.tvTimestamp.text = holder.itemView.context.getString(
@@ -1114,9 +1224,10 @@ class VideoFrameAdapter(
 
     override fun onViewRecycled(holder: VH) {
         super.onViewRecycled(holder)
+        // Fix: Glide yang manage lifecycle bitmap — cukup clear request-nya
+        com.bumptech.glide.Glide.with(holder.itemView.context).clear(holder.img)
         holder.thumbBitmap?.recycle()
         holder.thumbBitmap = null
-        holder.img.setImageDrawable(null)
     }
 
     override fun getItemCount() = frames.size

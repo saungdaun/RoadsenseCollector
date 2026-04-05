@@ -7,41 +7,46 @@
     android:background="@color/bg_dark">
 
     <!-- Header -->
-    <Button
-        android:id="@+id/btnBack"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="← Kembali"
-        android:backgroundTint="@color/bg_card"
-        android:textSize="12sp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_margin="8dp" />
-
-    <TextView
-        android:id="@+id/tvTitle"
+    <LinearLayout
+        android:id="@+id/headerBar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="🖼️ Browse Gallery HP"
-        android:textColor="@color/text_primary"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:gravity="center"
+        android:orientation="horizontal"
+        android:background="@color/bg_card"
+        android:padding="4dp"
+        android:gravity="center_vertical"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toEndOf="@id/btnBack"
-        app:layout_constraintEnd_toStartOf="@id/tvSelectedCount"
-        android:layout_marginTop="14dp" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <TextView
-        android:id="@+id/tvSelectedCount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="0 dipilih"
-        android:textColor="@color/accent"
-        android:textSize="12sp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp" />
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="← Kembali"
+            android:backgroundTint="@color/bg_item"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🖼️ Browse Gallery HP"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tvSelectedCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 dipilih"
+            android:textColor="@color/accent"
+            android:textSize="12sp"
+            android:paddingEnd="12dp" />
+    </LinearLayout>
 
     <!-- Filter bar -->
     <HorizontalScrollView
@@ -49,7 +54,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:scrollbars="none"
-        app:layout_constraintTop_toBottomOf="@id/btnBack"
+        app:layout_constraintTop_toBottomOf="@id/headerBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -58,8 +63,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="8dp" />
-
+            android:padding="6dp" />
     </HorizontalScrollView>
 
     <!-- Grid foto -->
@@ -77,57 +81,56 @@
         android:id="@+id/bottomBar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:background="@color/bg_card"
         android:padding="8dp"
+        android:gravity="center_vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/tvAssignLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Assign ke class:"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
-            android:layout_marginBottom="4dp" />
+        <Button
+            android:id="@+id/btnSelectAll"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:text="☑ Semua"
+            android:backgroundTint="@color/bg_item"
+            android:textSize="11sp"
+            android:layout_marginEnd="4dp" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnClearSelection"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:text="✕ Batal"
+            android:backgroundTint="@color/bg_item"
+            android:textSize="11sp"
+            android:layout_marginEnd="4dp" />
 
-            <Button
-                android:id="@+id/btnSelectAll"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="☑ Semua"
-                android:backgroundTint="@color/bg_item"
-                android:textSize="11sp"
-                android:layout_marginEnd="4dp" />
+        <Button
+            android:id="@+id/btnCropSelected"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:text="✂ Crop"
+            android:backgroundTint="#4A148C"
+            android:textSize="11sp"
+            android:layout_marginEnd="4dp"
+            android:enabled="false"
+            android:alpha="0.5" />
 
-            <Button
-                android:id="@+id/btnClearSelection"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="✕ Batal"
-                android:backgroundTint="@color/bg_item"
-                android:textSize="11sp"
-                android:layout_marginEnd="4dp" />
-
-            <Button
-                android:id="@+id/btnAssign"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="2"
-                android:text="📁 Assign ke Class →"
-                android:backgroundTint="@color/primary"
-                android:textSize="11sp" />
-
-        </LinearLayout>
+        <Button
+            android:id="@+id/btnAssign"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="2"
+            android:text="📁 Assign ke Class →"
+            android:backgroundTint="@color/primary"
+            android:textSize="11sp"
+            android:enabled="false"
+            android:alpha="0.5" />
 
     </LinearLayout>
 

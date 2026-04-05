@@ -132,7 +132,7 @@ class CollectorActivity : AppCompatActivity() {
 
     // ── Class grid ────────────────────────────────────────────────────
     private fun setupClassGrid() {
-        val adapter = ClassGridAdapter(RoadClasses.ALL_CLASSES) { roadClass ->
+        val adapter = ClassGridAdapter(RoadClasses.getActiveClasses(this)) { roadClass ->
             selectedClass = roadClass
             binding.tvSelectedClass.text = "${roadClass.code} — ${roadClass.nameId}"
             binding.tvSelectedClass.setBackgroundColor(

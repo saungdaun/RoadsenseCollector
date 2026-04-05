@@ -1,99 +1,109 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/bg_dark"
-    android:gravity="center"
-    android:padding="24dp">
+    android:fillViewport="true">
 
-    <!-- Logo + Title -->
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🛣️"
-        android:textSize="64sp"
-        android:layout_gravity="center" />
+        android:orientation="vertical"
+        android:background="@color/bg_dark"
+        android:gravity="center"
+        android:padding="24dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="RoadSense Collector"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@color/text_primary"
-        android:layout_gravity="center"
-        android:layout_marginBottom="8dp" />
+        <!-- Logo + Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🛣️"
+            android:textSize="48sp"
+            android:layout_gravity="center" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Dataset Builder untuk Training AI"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"
-        android:layout_gravity="center"
-        android:layout_marginBottom="48dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RoadSense Collector"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_gravity="center"
+            android:layout_marginBottom="8dp" />
 
-    <!-- Buttons -->
-    <Button
-        android:id="@+id/btnCamera"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:text="@string/btn_camera"
-        android:textSize="16sp"
-        android:backgroundTint="@color/primary"
-        android:layout_marginBottom="16dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Dataset Builder untuk Training AI"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:layout_gravity="center"
+            android:layout_marginBottom="20dp" />
 
-    <Button
-        android:id="@+id/btnLibrary"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:text="@string/btn_library"
-        android:textSize="16sp"
-        android:backgroundTint="@color/bg_card"
-        android:layout_marginBottom="16dp" />
+        <!-- Buttons -->
+        <Button
+            android:id="@+id/btnCamera"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="@string/btn_camera"
+            android:textSize="15sp"
+            android:backgroundTint="@color/primary"
+            android:layout_marginBottom="10dp" />
 
-    <Button
-        android:id="@+id/btnStats"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:text="@string/btn_stats"
-        android:textSize="16sp"
-        android:backgroundTint="@color/bg_card"
-        android:layout_marginBottom="16dp" />
+        <Button
+            android:id="@+id/btnLibrary"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="@string/btn_library"
+            android:textSize="15sp"
+            android:backgroundTint="@color/bg_card"
+            android:layout_marginBottom="10dp" />
 
-    <Button
-        android:id="@+id/btnExport"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:text="@string/btn_export"
-        android:textSize="16sp"
-        android:backgroundTint="@color/accent"
-        android:layout_marginBottom="32dp" />
-    <Button
-        android:id="@+id/btnGallery"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:text="🖼️ Browse Gallery HP"
-        android:textSize="16sp"
-        android:backgroundTint="#37474F"
-        android:layout_marginBottom="16dp" />
-    <Button
-        android:id="@+id/btnVideoExtractor"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:text="🎬 Extract Frame Video"
-        android:textSize="16sp"
-        android:backgroundTint="#1B5E20"
-        android:layout_marginBottom="16dp" />
+        <Button
+            android:id="@+id/btnStats"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="@string/btn_stats"
+            android:textSize="15sp"
+            android:backgroundTint="@color/bg_card"
+            android:layout_marginBottom="10dp" />
 
-    <TextView
-        android:id="@+id/tvTotalPhotos"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/total_photos"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"
-        android:layout_gravity="center" />
+        <Button
+            android:id="@+id/btnExport"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="@string/btn_export"
+            android:textSize="15sp"
+            android:backgroundTint="@color/accent"
+            android:layout_marginBottom="16dp" />
 
-</LinearLayout>
+        <Button
+            android:id="@+id/btnGallery"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="🖼️ Browse Gallery HP"
+            android:textSize="15sp"
+            android:backgroundTint="#37474F"
+            android:layout_marginBottom="10dp" />
+
+        <Button
+            android:id="@+id/btnVideoExtractor"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="🎬 Extract Frame Video"
+            android:textSize="15sp"
+            android:backgroundTint="#1B5E20"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:id="@+id/tvTotalPhotos"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/total_photos"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:layout_gravity="center"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
+</ScrollView>

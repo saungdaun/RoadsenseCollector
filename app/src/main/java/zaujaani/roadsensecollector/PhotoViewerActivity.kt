@@ -34,7 +34,8 @@ class PhotoViewerActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val code  = intent.getStringExtra(EXTRA_CLASS_CODE) ?: return finish()
-        cls       = RoadClasses.BY_CODE[code]               ?: return finish()
+        // Fix: byCodeCtx mencakup built-in + custom classes
+        cls       = RoadClasses.byCodeCtx(this, code)       ?: return finish()
         val start = intent.getIntExtra(EXTRA_START_INDEX, 0)
 
         val folder = CollectorStats.getClassFolder(this, code)
@@ -147,8 +148,9 @@ class PhotoViewerActivity : AppCompatActivity() {
 
     private fun showMoveDialog(position: Int) {
         if (position >= photos.size) return
-        val file      = photos[position]
-        val classList = RoadClasses.ALL_CLASSES.filter { it.code != cls.code }
+        val file = photos[position]
+        // Fix: getAllClasses mencakup built-in + custom
+        val classList = RoadClasses.getAllClasses(this).filter { it.code != cls.code }
         val names     = classList.map {
             getString(R.string.class_label_format, it.code, it.nameId)
         }.toTypedArray()
@@ -160,22 +162,37 @@ class PhotoViewerActivity : AppCompatActivity() {
                 val targetFolder = CollectorStats.getClassFolder(this, targetCls.code)
                 targetFolder?.mkdirs()
                 val destPhoto = File(targetFolder, file.name)
-                file.renameTo(destPhoto)
-                val jsonFile = File(file.parent, file.nameWithoutExtension + ".json")
-                if (jsonFile.exists()) jsonFile.renameTo(File(targetFolder, jsonFile.name))
+                val jsonFile  = File(file.parent, file.nameWithoutExtension + ".json")
 
-                photos.removeAt(position)
-                CollectorStats.recalculateFromDisk(this)
+                // Fix: copy+delete supaya aman lintas filesystem di Android 10+
+                val moved = try {
+                    file.copyTo(destPhoto, overwrite = true)
+                    file.delete()
+                    true
+                } catch (_: Exception) { false }
 
-                if (photos.isEmpty()) {
-                    finish()
+                if (moved) {
+                    if (jsonFile.exists()) {
+                        try {
+                            jsonFile.copyTo(File(targetFolder, jsonFile.name), overwrite = true)
+                            jsonFile.delete()
+                        } catch (_: Exception) {}
+                    }
+                    photos.removeAt(position)
+                    CollectorStats.recalculateFromDisk(this)
+
+                    if (photos.isEmpty()) {
+                        finish()
+                    } else {
+                        binding.viewPager.adapter?.notifyItemRemoved(position)
+                        binding.viewPager.adapter?.notifyItemRangeChanged(position, photos.size)
+                        updateInfo(binding.viewPager.currentItem)
+                    }
+                    Toast.makeText(this,
+                        getString(R.string.toast_moved, targetCls.code), Toast.LENGTH_SHORT).show()
                 } else {
-                    binding.viewPager.adapter?.notifyItemRemoved(position)
-                    binding.viewPager.adapter?.notifyItemRangeChanged(position, photos.size)
-                    updateInfo(binding.viewPager.currentItem)
+                    Toast.makeText(this, "Gagal memindahkan foto", Toast.LENGTH_SHORT).show()
                 }
-                Toast.makeText(this,
-                    getString(R.string.toast_moved, targetCls.code), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(R.string.btn_cancel, null)
             .show()
@@ -186,7 +203,7 @@ class PhotoPagerAdapter(
     private val photos: List<File>
 ) : RecyclerView.Adapter<PhotoPagerAdapter.VH>() {
 
-    class VH(view: View) : RecyclerView.ViewHolder(view) {
+    class VH(view: android.view.View) : RecyclerView.ViewHolder(view) {
         val img: ImageView = view.findViewById(R.id.imgFull)
     }
 
